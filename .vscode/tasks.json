@@ -1,0 +1,67 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "label": "build(linux)",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "${workspaceFolder}/*.cpp",
+                "-I/usr/include/x86_64-linux-gnu",
+                "-lcurl",
+                "-o",
+                "a.out"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "label": "Makefile",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "type": "shell",
+            "command":"cl",
+
+            // Pass 'all' as the build target
+            "args": ["/MDd",
+                "/W4",
+                "/EHsc",
+                "/ZI",
+                "/Fe:${workspaceFolder}/Debug/test.exe",
+                "/Fd:${workspaceFolder}/Debug/", 
+                "/Fo:${workspaceFolder}/Debug/",
+                "${workspaceFolder}/*.cpp"],
+
+            // Use the standard less compilation problem matcher.
+            "problemMatcher": {
+                "owner": "cpp",
+                "fileLocation": ["relative", "${workspaceRoot}"],
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        }
+    ]
+}
