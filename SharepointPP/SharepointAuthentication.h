@@ -1,8 +1,10 @@
+#include <string>
+#include <map>
+#include <vector>
 #include "tinyxml2.h"
 
-extern "C" tinyxml2::XMLDocument *prepareSoapRequest(const char *username, const char *password, const char *endpoint);
-extern "C" const char *parseResponse(const char *responseXml, const char *endpoint);
-extern "C" void curlInit();
-extern "C" bool sendPostRequest(const char *url, const char *data, const char *encoding);
-extern "C" const char * getPostData(size_t &bufferSize);
-extern "C" char ** getResponseHeaders(const char *headerName, size_t &foundHeaderCount);
+tinyxml2::XMLDocument *prepareSoapRequest(const std::string &username, const std::string &password, const std::string &endpoint);
+std::string parseResponse(const std::string &responseXml, const std::string &endpoint);
+bool sendPostRequest(const std::string &url, const std::string &data, const std::string &encoding, const std::vector<std::pair<std::string, std::string>> &cookies = std::vector<std::pair<std::string, std::string>>());
+std::string getPostData();
+std::vector<std::pair<std::string, std::string>> getResponseHeaders(const std::string &headerName);
