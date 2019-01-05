@@ -12,6 +12,8 @@ constexpr bool can_have_strcpy_s = false;
 #include <sstream>
 #include <iterator>
 #include <map>
+#include <algorithm>
+#include <iostream>
 
 #include "tinyxml2.h"
 #include <curl/curl.h>
@@ -96,7 +98,7 @@ std::string parseResponse(const std::string &responseXml, const std::string &end
                         tinyxml2::XMLElement *address = endpointReference->FirstChildElement("wsa:Address");
                         if(address != nullptr) {
                             if(strcmp(address->GetText(), endpoint.data()) != 0) {
-                                return nullptr;
+								return std::string();
                             }
                         }
                     }
@@ -115,7 +117,7 @@ std::string parseResponse(const std::string &responseXml, const std::string &end
             }
         }
     }
-    return nullptr;
+	return std::string();
 }
 
 CURL *curlHandle = nullptr;
@@ -124,6 +126,7 @@ std::vector<std::pair<std::string, std::string>> responseHeaders;
 bool initialized = false;
 FILE *responseData = nullptr;
 FILE *headerData = nullptr;
+std::vector<std::pair<std::string, std::string>> cookieStore;
 
 CURL *curlInit() {
     curl_global_init(CURL_GLOBAL_ALL);
@@ -139,22 +142,137 @@ size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp) {
     return nmemb;
 }
 
+std::string timeStampToHReadble(const time_t rawtime, const std::string &formatString)
+{
+	struct tm * dt;
+	char buffer [30];
+	dt = localtime(&rawtime);
+	strftime(buffer, sizeof(buffer), formatString.data(), dt);
+	return std::string(buffer);
+}
+
+std::string reformatCookie(const std::string &host, const std::string &value, const std::string &path, bool httpOnly, bool secure, size_t expireDate)
+{
+	std::string output;
+	output += value;
+	output += "; ";
+	if (host.length() > 0) {
+		output += "domain=";
+		output += host;
+		output += "; ";
+	}
+	if (path.length() > 0) {
+		output += "path=";
+		output += path;
+		output += "; ";
+	}
+	if (secure) {
+		output += "secure; ";
+	}
+	if (httpOnly) {
+		output += "HttpOnly; ";
+	}
+	if (expireDate > 0) {
+		output += "Expires=";
+		output += timeStampToHReadble(expireDate, "%a, %d %b %Y %I:%M:%S GMT");
+		output += "; ";
+	}
+	return output;
+}
+
+void readAllCookies(struct curl_slist *cookieStruct)
+{
+	if (cookieStruct != nullptr) {
+		std::string cookieString(cookieStruct->data, strlen(cookieStruct->data));
+		bool httpOnly = false;
+		bool secure = false;
+		std::string host = "";
+		std::string path = "";
+		std::string name = "";
+		std::string value = "";
+		size_t expireDate = 0;
+		std::istringstream f(cookieString);
+		std::string s;
+		std::vector<std::string> cookieStrings;
+		while (getline(f, s, '\t')) {
+			cookieStrings.push_back(s);
+		}
+		if (cookieStrings[0].substr(0, std::string("#HttpOnly_").length()) == std::string("#HttpOnly_")) {
+			httpOnly = true;
+			host = cookieStrings[0].substr(std::string("#HttpOnly_").length());
+		} else {
+			host = cookieStrings[0];
+		}
+		path = cookieStrings[2];
+		if (cookieStrings[3].length() > 0 && cookieStrings[3] == "TRUE") {
+			secure = true;
+		}
+		std::stringstream ss(cookieStrings[4]);
+		ss >> expireDate;
+		name = cookieStrings[5];
+		if (cookieStrings.size() == 7) {
+			value = cookieStrings[6];
+		}
+		cookieStore.push_back(std::pair<std::string, std::string>(name, reformatCookie(host, value, path, httpOnly, secure, expireDate)));
+	}
+	if (cookieStruct->next != nullptr) {
+		readAllCookies(cookieStruct->next);
+	}
+}
+void readCookies(CURL *curl)
+{
+	CURLcode res;
+	struct curl_slist *cookies;
+	struct curl_slist *nc;
+	int i;
+
+	res = curl_easy_getinfo(curl, CURLINFO_COOKIELIST, &cookies);
+	if(res != CURLE_OK) {
+		fprintf(stderr, "Curl curl_easy_getinfo failed: %s\n",
+			curl_easy_strerror(res));
+	}
+	nc = cookies;
+	readAllCookies(nc);
+	curl_slist_free_all(cookies);
+}
+
 size_t header_function(void *buffer, size_t size, size_t nmemb, void *userp) {
-    std::string s(reinterpret_cast<char *>(buffer), size * nmemb);
+	const char *bufferStr = static_cast<const char *>(buffer);
+    std::string s = std::string(bufferStr, size * nmemb);
 	size_t pos = s.find(":");
+	std::cout << "original header value: " << s << std::endl;
     if(s.length() > 0 && pos != std::string::npos) {
 		std::string name = s.substr(0, pos);
-        if(name.length() > 0) {
-			printf("%s\n", s.substr(pos + 2).data());
+		std::string value = s.substr(pos + 1);
+		if (value[0] == ' ') {
+			value = value.substr(1);
+		}
+		//value.erase(std::remove(value.begin(), value.end(), '\n'), value.end());
+        if(name.length() > 0 && value.length() > 0) {
+			/*if (name == "Set-Cookie") {
+				size_t cookiePos = value.find('=');
+				if (cookiePos != std::string::npos) {
+					std::string cookieName = value.substr(0, cookiePos);
+					std::string cookieValue = value.substr(cookiePos + 1, value.length() - cookiePos - 1);
+					if (cookieValue[cookieValue.length() - 1] == '\n') {
+						cookieValue = cookieValue.substr(0, cookieValue.length() - 1);
+					}
+					std::string debugString = "|";
+					debugString += cookieName;
+					debugString += " = ";
+					debugString += cookieValue;
+					debugString += " | ";
+					std::cout << debugString << std::endl;
+					cookieStore.push_back(std::pair<std::string, std::string>(cookieName, cookieValue));
+				}
+			}*/
             responseHeaders.push_back(
-				std::pair<std::string, std::string>(
-					std::string(name),
-					s.substr(pos + 2)));
+				std::pair<std::string, std::string>(name, value));
+			std::cout << "added header: " << name << " | value: " << value << " | " << std::endl;
         }
     }
     //responseHeaders.push_back(std::pair<std::string, std::string>(s, s));
-	printf(__FUNCTION__);
-	printf("\n");
+	std::cout << __FUNCTION__ << std::endl;
     return size * nmemb;
 }
 
@@ -166,6 +284,8 @@ bool sendPostRequest(const std::string &url, const std::string &data, const std:
     responseHeaders.clear();
 	// clear the response buffer from previous request
     responseBuffer.clear();
+	// clear all the cookies from previous request
+	cookieStore.clear();
 	// get new hendle for performing the request
     curlHandle = curlInit();
 	if (!curlHandle) {
@@ -174,6 +294,7 @@ bool sendPostRequest(const std::string &url, const std::string &data, const std:
 	// set url for the request
     curl_easy_setopt(curlHandle, CURLOPT_URL, url.data());
 	curl_easy_setopt(curlHandle, CURLOPT_POST, 1L);
+	curl_easy_setopt(curlHandle, CURLOPT_COOKIEFILE, ""); /* start cookie engine */ 
 
 	// if set, set the encoding header
 	struct curl_slist *headers = NULL;
@@ -185,20 +306,21 @@ bool sendPostRequest(const std::string &url, const std::string &data, const std:
 		headers = curl_slist_append(NULL, encoding.data());
 	}
 	if (cookies.size() > 0) {
+		std::string cookieString;
 		for (std::vector<std::pair<std::string, std::string>>::const_iterator it = cookies.begin(); it != cookies.end(); ++it) {
-			std::string tempString = "Cookie:" + it->second;
-			printf("tempString: %s\n", tempString.data());
-			headers = curl_slist_append(headers, tempString.data());
+			cookieString += std::move(it->first + '=' + it->second);
 		}
+		printf("cookieString: %s\n", cookieString.data());
+		curl_easy_setopt(curlHandle, CURLOPT_COOKIE, cookieString.data());
 	}
 	if (data.length() == 0) {
 		std::string contentLengthHeader("Content-Length: 0");
 		headers = curl_slist_append(headers, contentLengthHeader.data());
-		std::string transferEncoding = "Transfer-Encoding: chunked";
-		headers = curl_slist_append(headers, transferEncoding.data());
+		std::string contentType = "Content-Type: application/x-www-form-urlencoded";
+		headers = curl_slist_append(headers, contentType.data());
 	}
 	curl_easy_setopt(curlHandle, CURLOPT_HTTPHEADER, headers);
-	curl_easy_setopt(curlHandle, CURLOPT_TRANSFER_ENCODING, 1);
+	//curl_easy_setopt(curlHandle, CURLOPT_TRANSFER_ENCODING, 1);
 
 #ifdef _DEBUG
 	curl_easy_setopt(curlHandle, CURLOPT_VERBOSE, 1L);
@@ -218,7 +340,7 @@ bool sendPostRequest(const std::string &url, const std::string &data, const std:
     curl_easy_setopt(curlHandle, CURLOPT_WRITEFUNCTION, write_data);
 	//curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, &responseData);
 	// set the header function for getting the headers set by the response
-    curl_easy_setopt(curlHandle, CURLOPT_HEADERFUNCTION, header_function);
+    //curl_easy_setopt(curlHandle, CURLOPT_HEADERFUNCTION, header_function);
 	//curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, &headerData);
 
 	// perform the actual request
@@ -228,6 +350,8 @@ bool sendPostRequest(const std::string &url, const std::string &data, const std:
     if(success != CURLE_OK) {
 		fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(success));
     }
+
+	readCookies(curlHandle);
 
 	curl_easy_cleanup(curlHandle);
 
@@ -254,4 +378,9 @@ std::vector<std::pair<std::string, std::string>> getResponseHeaders(const std::s
         }
     }
 	return foundHeaders;
+}
+
+std::vector<std::pair<std::string, std::string>> getResponseCookies()
+{
+	return cookieStore;
 }
