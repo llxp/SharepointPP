@@ -22,21 +22,21 @@
     <ClCompile Include="authentication\Authentication.cpp" />
     <ClCompile Include="authentication\SecurityDigest.cpp" />
     <ClCompile Include="authentication\STSRequest.cpp" />
-    <ClCompile Include="ConsoleUtil.cpp" />
-    <ClCompile Include="RestUtils.cpp" />
+    <ClCompile Include="common\ConsoleUtil.cpp" />
+    <ClCompile Include="common\RestUtils.cpp" />
     <ClCompile Include="SharepointAuthentication.cpp" />
     <ClCompile Include="authentication\tinyxml2.cpp" />
-    <ClCompile Include="TimeUtils.cpp" />
+    <ClCompile Include="common\TimeUtils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="authentication\Authentication.h" />
     <ClInclude Include="authentication\SecurityDigest.h" />
     <ClInclude Include="authentication\STSRequest.h" />
-    <ClInclude Include="ConsoleUtil.h" />
-    <ClInclude Include="RestUtils.h" />
+    <ClInclude Include="common\ConsoleUtil.h" />
+    <ClInclude Include="common\RestUtils.h" />
     <ClInclude Include="SharepointAuthentication.h" />
     <ClInclude Include="authentication\tinyxml2.h" />
-    <ClInclude Include="TimeUtils.h" />
+    <ClInclude Include="common\TimeUtils.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>

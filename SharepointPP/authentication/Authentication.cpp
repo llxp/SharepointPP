@@ -7,8 +7,8 @@
 #include "STSRequest.h"
 #include "tinyxml2.h"
 
-#include "../RestUtils.h"
-#include "../TimeUtils.h"
+#include "../common/RestUtils.h"
+#include "../common/TimeUtils.h"
 
 using Microsoft::Sharepoint::Authentication;
 using Microsoft::Sharepoint::SecurityDigest;

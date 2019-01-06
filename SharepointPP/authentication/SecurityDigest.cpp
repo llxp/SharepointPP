@@ -1,6 +1,6 @@
 #include "SecurityDigest.h"
 
-#include "../TimeUtils.h"
+#include "../common/TimeUtils.h"
 
 using Microsoft::Sharepoint::SecurityDigest;
 
