@@ -1,7 +1,7 @@
 #include <string>
 #include <map>
 #include <vector>
-#include "tinyxml2.h"
+#include "authentication/tinyxml2.h"
 
 tinyxml2::XMLDocument *prepareSoapRequest(const std::string &username, const std::string &password, const std::string &endpoint);
 std::string parseResponse(const std::string &responseXml, const std::string &endpoint);

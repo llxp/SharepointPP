@@ -21,10 +21,25 @@
     <ClCompile Include="SharepointAuthentication.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="tinyxml2.cpp">
+    <ClCompile Include="ConsoleUtil.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ConsoleUtil.cpp">
+    <ClCompile Include="authentication\STSRequest.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="authentication\tinyxml2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="authentication\Authentication.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RestUtils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="authentication\SecurityDigest.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TimeUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -32,10 +47,25 @@
     <ClInclude Include="SharepointAuthentication.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="tinyxml2.h">
+    <ClInclude Include="ConsoleUtil.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ConsoleUtil.h">
+    <ClInclude Include="authentication\STSRequest.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="authentication\tinyxml2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="authentication\Authentication.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RestUtils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="authentication\SecurityDigest.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TimeUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
