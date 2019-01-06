@@ -32,11 +32,16 @@ Authentication::~Authentication()
 
 void Microsoft::Sharepoint::Authentication::setSharepointEndpoint(const std::string & sharepointEndpoint)
 {
-	m_endpoint = sharepointEndpoint;
-	if (m_endpoint[m_endpoint.length() - 1] == '/') {
-		m_endpoint = m_endpoint.substr(0, m_endpoint.length() - 1);
+	if (sharepointEndpoint.length() > 0) {
+		m_endpoint = sharepointEndpoint;
+		if (m_endpoint[m_endpoint.length() - 1] == '/') {
+			m_endpoint = m_endpoint.substr(0, m_endpoint.length() - 1);
+		}
+		if (m_endpoint.substr(0, std::string("http://").length() - 1) != std::string("http://") && m_endpoint.substr(0, std::string("https://").length() - 1) != std::string("https://")) {
+			m_endpoint = "https://" + m_endpoint;
+		}
+		m_contextInfoUrl = m_endpoint + "/_api/contextinfo";
 	}
-	m_contextInfoUrl = m_endpoint + "/_api/contextinfo";
 }
 
 void Microsoft::Sharepoint::Authentication::setSTSEndpoint(const std::string & stsEndpoint)
