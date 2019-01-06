@@ -1,2 +1,6 @@
 #pragma once
-static const char *STSRequest;
+class STSRequest
+{
+public:
+	static const char *Value;
+};

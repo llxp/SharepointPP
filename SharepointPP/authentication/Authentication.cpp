@@ -11,6 +11,8 @@
 #include "../TimeUtils.h"
 
 using Microsoft::Sharepoint::Authentication;
+using Microsoft::Sharepoint::SecurityDigest;
+using Microsoft::Sharepoint::RestUtils;
 
 std::string Authentication::endpoint = "https://microsoft.sharepoint.com";
 std::string Authentication::stsEndpoint = "https://login.microsoftonline.com/extSTS.srf";
@@ -33,22 +35,22 @@ Authentication::~Authentication()
 {
 }
 
-bool Microsoft::Sharepoint::Authentication::authenticate(std::string && username, std::string && password)
+bool Authentication::authenticate(std::string && username, std::string && password)
 {
 	return login(std::move(username), std::move(password));
 }
 
-bool Microsoft::Sharepoint::Authentication::tokenIsValid() const
+bool Authentication::tokenIsValid() const
 {
 	return m_securityDigest.isValid();
 }
 
-SecurityDigest Microsoft::Sharepoint::Authentication::getSecurityDigest()
+SecurityDigest Authentication::getSecurityDigest()
 {
 	return m_securityDigest;
 }
 
-bool Microsoft::Sharepoint::Authentication::login(std::string && username, std::string && password)
+bool Authentication::login(std::string && username, std::string && password)
 {
 	std::string preparedSoapRequest = getPreparedSoapData(std::move(username), std::move(password), endpoint);
 	if (preparedSoapRequest.length() > 0) {
@@ -82,10 +84,11 @@ bool Microsoft::Sharepoint::Authentication::login(std::string && username, std::
 	return false;
 }
 
-std::string Microsoft::Sharepoint::Authentication::getPreparedSoapData(std::string && username, std::string && password, const std::string & endpoint)
+std::string Authentication::getPreparedSoapData(std::string && username, std::string && password, const std::string & endpoint)
 {
 	tinyxml2::XMLDocument doc;
-	doc.LoadFile("STSRequest.xml");
+	//doc.LoadFile("STSRequest.xml");
+	doc.Parse(STSRequest::Value);
 	tinyxml2::XMLElement *envelope = doc.FirstChildElement("s:Envelope");
 	if(envelope != nullptr) {
 		tinyxml2::XMLElement *header =  envelope->FirstChildElement("s:Header");
@@ -149,7 +152,7 @@ std::string Microsoft::Sharepoint::Authentication::getPreparedSoapData(std::stri
 	return std::string(printer.CStr(), printer.CStrSize());
 }
 
-std::string Microsoft::Sharepoint::Authentication::parseSTSResponse(std::string && responseXml, const std::string & endpoint)
+std::string Authentication::parseSTSResponse(std::string && responseXml, const std::string & endpoint)
 {
 	tinyxml2::XMLDocument doc;
 	doc.Parse(responseXml.data());
@@ -184,16 +187,7 @@ std::string Microsoft::Sharepoint::Authentication::parseSTSResponse(std::string 
 	return std::string();
 }
 
-std::chrono::system_clock::rep time_since_epoch(){
-	static_assert(
-		std::is_integral<std::chrono::system_clock::rep>::value,
-		"Representation of ticks isn't an integral value."
-		);
-	auto now = std::chrono::system_clock::now().time_since_epoch();
-	return std::chrono::duration_cast<std::chrono::seconds>(now).count();
-}
-
-void Microsoft::Sharepoint::Authentication::parseContextInfoResponse(std::string && responseXml)
+void Authentication::parseContextInfoResponse(std::string && responseXml)
 {
 	tinyxml2::XMLDocument doc;
 	doc.Parse(responseXml.data());

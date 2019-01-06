@@ -224,7 +224,6 @@ void readCookies2(CURL *curl)
 	CURLcode res;
 	struct curl_slist *cookies;
 	struct curl_slist *nc;
-	int i;
 
 	res = curl_easy_getinfo(curl, CURLINFO_COOKIELIST, &cookies);
 	if(res != CURLE_OK) {

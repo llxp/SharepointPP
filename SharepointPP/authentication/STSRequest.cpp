@@ -1,5 +1,6 @@
-const char *STSRequest = " \
-<s:Envelope \
+#include "STSRequest.h"
+
+const char *STSRequest::Value = "<s:Envelope \
 	xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\" \
 	xmlns:a=\"http://www.w3.org/2005/08/addressing\" \
 	xmlns:u=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd\"> \

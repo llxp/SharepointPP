@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 
+namespace Microsoft {
+namespace Sharepoint {
 class SecurityDigest
 {
 public:
@@ -9,10 +11,16 @@ public:
 	__declspec(dllexport) ~SecurityDigest();
 	__declspec(dllexport) bool isValid() const;
 	__declspec(dllexport) std::string value() const;
+	__declspec(dllexport) SecurityDigest(const SecurityDigest &other);
+	__declspec(dllexport) void swap(SecurityDigest& first, SecurityDigest& second); // nothrow
+	__declspec(dllexport) SecurityDigest &operator=(SecurityDigest other);
+	_declspec(dllexport) SecurityDigest(SecurityDigest&& other);
 
 private:
-	char * m_securityDigest;
+	const char * m_securityDigest;
 	size_t m_securityDigestSetTime {0};
 	size_t m_securityDigestTimeout {0};
 };
+}  // namespace Sharepoint
+}  // namespace Microsoft
 

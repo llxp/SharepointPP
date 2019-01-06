@@ -233,7 +233,7 @@ void Microsoft::Sharepoint::RestUtils::addCookie(const std::string & name, const
 std::string Microsoft::Sharepoint::RestUtils::getUnescapedString(const std::string & escapedString)
 {
 	std::string tempBuffer;
-	char *curlUnescapedString = curl_unescape(escapedString.data(), escapedString.length());
+	char *curlUnescapedString = curl_unescape(escapedString.data(), static_cast<int>(escapedString.length()));
 	tempBuffer.resize(strlen(curlUnescapedString));
 	strcpy(&tempBuffer[0], curlUnescapedString);
 	curl_free(curlUnescapedString);
