@@ -36,3 +36,9 @@ x64/Debug/*
 x64/Release/*
 Debug/*
 Release/*
+SharepointPP/x64/Debug/*
+SharepointPP/x64/Release/*
+SharepointPP/Debug/*
+SharepointPP/Release/*
+
+SharepointPP/main.cpp
