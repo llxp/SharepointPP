@@ -18,8 +18,9 @@ Authentication::Authentication()
 {
 }
 
-Authentication::Authentication(std::string && username, std::string && password)
+Authentication::Authentication(std::string && username, std::string && password, const std::string &endpoint)
 {
+	setSharepointEndpoint(endpoint);
 	if (!login(std::move(username), std::move(password))) {
 		throw std::exception("login error");
 	}

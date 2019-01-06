@@ -10,11 +10,19 @@ extern "C" class Authentication
 {
 public:
 	__declspec(dllexport) Authentication();
-	__declspec(dllexport) Authentication(std::string && username, std::string && password);
+	__declspec(dllexport) Authentication(std::string && username, std::string && password, const std::string &endpoint);
 	__declspec(dllexport) ~Authentication();
 
 public:
+	// the endpoint url can be in the form of
+	// https://host
+	// https://host.sharepoint.com
+	// https://host/ --> will be renamed to https://host
+	// https://host.sharepoint.com/ --> will be renamed to https://host.sharepoint.com
+	// host --> will be renamed to https://host
+	// host.sharepoint.com --> will be renamed to https://host.sharepoint.com
 	__declspec(dllexport) void setSharepointEndpoint(const std::string &sharepointEndpoint);
+	// the sts endpoint url has to be in the form https://host/extSTS.srf
 	__declspec(dllexport) void setSTSEndpoint(const std::string &stsEndpoint);
 	__declspec(dllexport) void setContextInfoUrl(const std::string &&contextInfoUrl);
 
