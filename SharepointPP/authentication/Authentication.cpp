@@ -33,6 +33,10 @@ Authentication::~Authentication()
 void Microsoft::Sharepoint::Authentication::setSharepointEndpoint(const std::string & sharepointEndpoint)
 {
 	m_endpoint = sharepointEndpoint;
+	if (m_endpoint[m_endpoint.length() - 1] == '/') {
+		m_endpoint = m_endpoint.substr(0, m_endpoint.length() - 1);
+	}
+	m_contextInfoUrl = m_endpoint + "/_api/contextinfo";
 }
 
 void Microsoft::Sharepoint::Authentication::setSTSEndpoint(const std::string & stsEndpoint)
@@ -70,7 +74,7 @@ bool Authentication::login(std::string && username, std::string && password)
 			if (responseData.length() > 0) {
 				std::string securityCode = parseSTSResponse(std::move(responseData), m_endpoint);
 				if (securityCode.length() > 0) {
-					if (RestUtils::sendPostRequest(m_endpoint + "_forms/default.aspx?wa=wsignin1.0", securityCode, "")) {
+					if (RestUtils::sendPostRequest(m_endpoint + "/_forms/default.aspx?wa=wsignin1.0", securityCode, "")) {
 						// got both cookies from the default login page of the sharepoint server
 						responseData = RestUtils::getResponseData();
 						if (responseData.length() > 0) {
