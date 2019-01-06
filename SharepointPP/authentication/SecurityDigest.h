@@ -12,9 +12,11 @@ public:
 	__declspec(dllexport) bool isValid() const;
 	__declspec(dllexport) std::string value() const;
 	__declspec(dllexport) SecurityDigest(const SecurityDigest &other);
-	__declspec(dllexport) void swap(SecurityDigest& first, SecurityDigest& second); // nothrow
 	__declspec(dllexport) SecurityDigest &operator=(SecurityDigest other);
 	_declspec(dllexport) SecurityDigest(SecurityDigest&& other);
+
+private:
+	void swap(SecurityDigest& first, SecurityDigest& second); // nothrow
 
 private:
 	const char * m_securityDigest;

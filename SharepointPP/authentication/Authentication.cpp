@@ -14,11 +14,6 @@ using Microsoft::Sharepoint::Authentication;
 using Microsoft::Sharepoint::SecurityDigest;
 using Microsoft::Sharepoint::RestUtils;
 
-std::string Authentication::endpoint = "https://microsoft.sharepoint.com";
-std::string Authentication::stsEndpoint = "https://login.microsoftonline.com/extSTS.srf";
-std::string Authentication::defaultLoginPage = "https://microsoft.sharepoint.com/_forms/default.aspx?wa=wsignin1.0";
-std::string Authentication::contextInfoUrl = "https://microsoft.sharepoint.com/_api/contextinfo";
-
 Authentication::Authentication()
 {
 }
@@ -35,6 +30,21 @@ Authentication::~Authentication()
 {
 }
 
+void Microsoft::Sharepoint::Authentication::setSharepointEndpoint(const std::string & sharepointEndpoint)
+{
+	m_endpoint = sharepointEndpoint;
+}
+
+void Microsoft::Sharepoint::Authentication::setSTSEndpoint(const std::string & stsEndpoint)
+{
+	m_stsEndpoint = stsEndpoint;
+}
+
+void Microsoft::Sharepoint::Authentication::setContextInfoUrl(const std::string && contextInfoUrl)
+{
+	m_contextInfoUrl = contextInfoUrl;
+}
+
 bool Authentication::authenticate(std::string && username, std::string && password)
 {
 	return login(std::move(username), std::move(password));
@@ -42,7 +52,7 @@ bool Authentication::authenticate(std::string && username, std::string && passwo
 
 bool Authentication::tokenIsValid() const
 {
-	return m_securityDigest.isValid();
+	return (&m_securityDigest)->isValid();
 }
 
 SecurityDigest Authentication::getSecurityDigest()
@@ -52,21 +62,21 @@ SecurityDigest Authentication::getSecurityDigest()
 
 bool Authentication::login(std::string && username, std::string && password)
 {
-	std::string preparedSoapRequest = getPreparedSoapData(std::move(username), std::move(password), endpoint);
+	std::string preparedSoapRequest = getPreparedSoapData(std::move(username), std::move(password), m_endpoint);
 	if (preparedSoapRequest.length() > 0) {
-		if (RestUtils::sendPostRequest(stsEndpoint, std::move(preparedSoapRequest), "application/xml")) {
+		if (RestUtils::sendPostRequest(m_stsEndpoint, std::move(preparedSoapRequest), "application/xml")) {
 			// got binary token form sts server
 			std::string responseData = RestUtils::getResponseData();
 			if (responseData.length() > 0) {
-				std::string securityCode = parseSTSResponse(std::move(responseData), endpoint);
+				std::string securityCode = parseSTSResponse(std::move(responseData), m_endpoint);
 				if (securityCode.length() > 0) {
-					if (RestUtils::sendPostRequest(defaultLoginPage, securityCode, "")) {
+					if (RestUtils::sendPostRequest(m_endpoint + "_forms/default.aspx?wa=wsignin1.0", securityCode, "")) {
 						// got both cookies from the default login page of the sharepoint server
 						responseData = RestUtils::getResponseData();
 						if (responseData.length() > 0) {
 							RestUtils::cookieType cookies = RestUtils::getCookiesAfterRequest();
 							if (cookies.size() > 0) {
-								if (RestUtils::sendPostRequest(contextInfoUrl, "", "application/x-www-form-urlencoded", cookies)) {
+								if (RestUtils::sendPostRequest(m_contextInfoUrl, "", "application/x-www-form-urlencoded", cookies)) {
 									// got the request digest from the sharepoint server
 									responseData = RestUtils::getResponseData();
 									parseContextInfoResponse(std::move(responseData));

@@ -39,11 +39,6 @@
     <ClInclude Include="authentication\tinyxml2.h" />
     <ClInclude Include="TimeUtils.h" />
   </ItemGroup>
-  <ItemGroup>
-    <Xml Include="STSRequest.xml">
-      <DeploymentContent>true</DeploymentContent>
-    </Xml>
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{BEA30A0E-8F84-414F-A05B-49730C254274}</ProjectGuid>
