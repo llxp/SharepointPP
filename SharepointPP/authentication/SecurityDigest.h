@@ -16,7 +16,7 @@ public:
 	_declspec(dllexport) SecurityDigest(SecurityDigest&& other);
 
 private:
-	void swap(SecurityDigest& first, SecurityDigest& second); // nothrow
+	static void swap(SecurityDigest& first, SecurityDigest& second); // nothrow
 
 private:
 	const char * m_securityDigest;

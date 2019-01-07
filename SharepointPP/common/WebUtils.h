@@ -5,11 +5,11 @@
 
 namespace Microsoft {
 namespace Sharepoint {
-class RestUtils
+class WebUtils
 {
 public:
-	RestUtils();
-	~RestUtils();
+	WebUtils();
+	~WebUtils();
 	typedef std::vector<std::pair<std::string, std::string>> cookieType;
 	static bool sendPostRequest(
 		const std::string &url,

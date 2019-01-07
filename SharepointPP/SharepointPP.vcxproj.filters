@@ -13,56 +13,68 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\authentication">
+      <UniqueIdentifier>{33a02d13-a5ea-4bd5-b8cd-d1ec3ca226e9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\authentication">
+      <UniqueIdentifier>{c2af23b7-5688-40ac-bf3e-9463e048e0b7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\common">
+      <UniqueIdentifier>{e54981fe-7d9d-41a8-bcb8-e144fc635d85}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\common">
+      <UniqueIdentifier>{ac868a54-da82-4b6c-be52-9d1ff0d3b132}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="SharepointAuthentication.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="authentication\STSRequest.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="authentication\tinyxml2.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\authentication</Filter>
     </ClCompile>
     <ClCompile Include="authentication\Authentication.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\authentication</Filter>
     </ClCompile>
     <ClCompile Include="authentication\SecurityDigest.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\authentication</Filter>
+    </ClCompile>
+    <ClCompile Include="authentication\tinyxml2.cpp">
+      <Filter>Source Files\authentication</Filter>
     </ClCompile>
     <ClCompile Include="common\ConsoleUtil.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="common\RestUtils.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\common</Filter>
     </ClCompile>
     <ClCompile Include="common\TimeUtils.cpp">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="common\WebUtils.cpp">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="common\ConversionUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="SharepointAuthentication.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="authentication\STSRequest.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="authentication\tinyxml2.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="authentication\Authentication.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\authentication</Filter>
     </ClInclude>
     <ClInclude Include="authentication\SecurityDigest.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\authentication</Filter>
     </ClInclude>
-    <ClInclude Include="common\TimeUtils.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="authentication\STSRequest.h">
+      <Filter>Header Files\authentication</Filter>
     </ClInclude>
-    <ClInclude Include="common\RestUtils.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="authentication\tinyxml2.h">
+      <Filter>Header Files\authentication</Filter>
     </ClInclude>
     <ClInclude Include="common\ConsoleUtil.h">
+      <Filter>Header Files\common</Filter>
+    </ClInclude>
+    <ClInclude Include="common\TimeUtils.h">
+      <Filter>Header Files\common</Filter>
+    </ClInclude>
+    <ClInclude Include="common\WebUtils.h">
+      <Filter>Header Files\common</Filter>
+    </ClInclude>
+    <ClInclude Include="common\ConversionUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

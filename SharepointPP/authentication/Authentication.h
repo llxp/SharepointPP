@@ -6,7 +6,7 @@
 
 namespace Microsoft {
 namespace Sharepoint {
-extern "C" class Authentication
+class Authentication
 {
 public:
 	__declspec(dllexport) Authentication();
@@ -41,6 +41,7 @@ private:
 	std::string m_endpoint;
 	std::string m_stsEndpoint {"https://login.microsoftonline.com/extSTS.srf"};
 	std::string m_contextInfoUrl;
+	std::string m_defaultLoginPage;
 
 private:
 	SecurityDigest m_securityDigest;

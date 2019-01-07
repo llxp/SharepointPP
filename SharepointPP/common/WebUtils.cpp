@@ -1,27 +1,29 @@
-#include "RestUtils.h"
+#include "WebUtils.h"
 
 #include <sstream>
 #include <algorithm>
 
 #include <curl/curl.h>
 
-using Microsoft::Sharepoint::RestUtils;
+#include "ConversionUtils.h"
 
-std::vector<std::pair<std::string, std::string>> RestUtils::m_responseHeaders;
-std::string RestUtils::m_responseBuffer;
-RestUtils::cookieType RestUtils::m_cookieStore;
-void *RestUtils::m_curlHandle;
+using Microsoft::Sharepoint::WebUtils;
+
+std::vector<std::pair<std::string, std::string>> WebUtils::m_responseHeaders;
+std::string WebUtils::m_responseBuffer;
+WebUtils::cookieType WebUtils::m_cookieStore;
+void *WebUtils::m_curlHandle;
 
 std::string timeStampToHReadble(const time_t rawtime, const std::string &formatString);
 std::string reformatCookie(const std::string &host, const std::string &value, const std::string &path, bool httpOnly, bool secure, size_t expireDate);
 void readAllCookies(struct curl_slist *cookieStruct);
 
-RestUtils::RestUtils()
+WebUtils::WebUtils()
 {
 }
 
 
-RestUtils::~RestUtils()
+WebUtils::~WebUtils()
 {
 }
 
@@ -63,46 +65,60 @@ std::string reformatCookie(const std::string &host, const std::string &value, co
 	return output;
 }
 
-void readAllCookies(struct curl_slist *cookieStruct)
+std::string cookieToString(struct curl_slist *cookieStruct)
 {
-	if (cookieStruct != nullptr) {
-		std::string cookieString(cookieStruct->data, strlen(cookieStruct->data));
+	return std::string(cookieStruct->data, strlen(cookieStruct->data));
+}
+
+std::vector<std::string> splitCookieString(std::string &&cookieString)
+{
+	std::istringstream f(cookieString);
+	std::string s;
+	std::vector<std::string> cookieStrings;
+	while (getline(f, s, '\t')) {
+		cookieStrings.push_back(s);
+	}
+	return cookieStrings;
+}
+
+void readSingleCookie(struct curl_slist *cookieStruct)
+{
+	std::vector<std::string> cookieStrings(
+		std::move(splitCookieString(
+			std::move(cookieToString(cookieStruct)))));
+	if (cookieStrings.size() >= 6) {
 		bool httpOnly = false;
 		bool secure = false;
 		std::string host = "";
-		std::string path = "";
-		std::string name = "";
+		std::string path(cookieStrings[2]);
+		std::string name(cookieStrings[5]);
 		std::string value = "";
-		size_t expireDate = 0;
-		std::istringstream f(cookieString);
-		std::string s;
-		std::vector<std::string> cookieStrings;
-		while (getline(f, s, '\t')) {
-			cookieStrings.push_back(s);
+		size_t expireDate(ConversionUtils::stringToSize_T(cookieStrings[4]));
+
+		if (cookieStrings[0].length() >= std::string("#HttpOnly_").length() &&
+			cookieStrings[0].substr(0, std::string("#HttpOnly_").length()) == std::string("#HttpOnly_")) {
+			httpOnly = true;
+			host = cookieStrings[0].substr(std::string("#HttpOnly_").length());
+		} else {
+			host = cookieStrings[0];
 		}
-		if (cookieStrings.size() >= 6) {
-			if (cookieStrings[0].length() >= std::string("#HttpOnly_").length() &&
-				cookieStrings[0].substr(0, std::string("#HttpOnly_").length()) == std::string("#HttpOnly_")) {
-				httpOnly = true;
-				host = cookieStrings[0].substr(std::string("#HttpOnly_").length());
-			} else {
-				host = cookieStrings[0];
-			}
-			path = cookieStrings[2];
-			if (cookieStrings[3].length() > 0 && cookieStrings[3] == "TRUE") {
-				secure = true;
-			}
-			std::stringstream ss(cookieStrings[4]);
-			ss >> expireDate;
-			name = cookieStrings[5];
-			if (cookieStrings.size() >= 7) {
-				value = cookieStrings[6];
-			}
+		if (cookieStrings[3].length() > 0 && cookieStrings[3] == "TRUE") {
+			secure = true;
 		}
-		RestUtils::addCookie(name, reformatCookie(host, value, path, httpOnly, secure, expireDate));
+		if (cookieStrings.size() >= 7) {
+			value = cookieStrings[6];
+		}
+		WebUtils::addCookie(name, reformatCookie(host, value, path, httpOnly, secure, expireDate));
 	}
-	if (cookieStruct->next != nullptr) {
-		readAllCookies(cookieStruct->next);
+}
+
+void readAllCookies(struct curl_slist *cookieStruct)
+{
+	if (cookieStruct != nullptr) {
+		readSingleCookie(cookieStruct);
+		if (cookieStruct->next != nullptr) {
+			readAllCookies(cookieStruct->next);
+		}
 	}
 }
 
@@ -120,7 +136,7 @@ void readCookies(CURL *curl)
 	curl_slist_free_all(cookies);
 }
 
-bool Microsoft::Sharepoint::RestUtils::sendPostRequest(const std::string &url, const std::string &data, const std::string &contentType, const cookieType &cookies)
+bool Microsoft::Sharepoint::WebUtils::sendPostRequest(const std::string &url, const std::string &data, const std::string &contentType, const cookieType &cookies)
 {
 	// clear all headers from previous request
 	m_responseHeaders.clear();
@@ -215,22 +231,22 @@ bool Microsoft::Sharepoint::RestUtils::sendPostRequest(const std::string &url, c
 	return success == CURLE_OK;
 }
 
-RestUtils::cookieType RestUtils::getCookiesAfterRequest()
+WebUtils::cookieType WebUtils::getCookiesAfterRequest()
 {
 	return m_cookieStore;
 }
 
-std::string Microsoft::Sharepoint::RestUtils::getResponseData()
+std::string Microsoft::Sharepoint::WebUtils::getResponseData()
 {
 	return m_responseBuffer;
 }
 
-void Microsoft::Sharepoint::RestUtils::addCookie(const std::string & name, const std::string & value)
+void Microsoft::Sharepoint::WebUtils::addCookie(const std::string & name, const std::string & value)
 {
 	m_cookieStore.push_back(std::pair<std::string, std::string>(name, value));
 }
 
-std::string Microsoft::Sharepoint::RestUtils::getUnescapedString(const std::string & escapedString)
+std::string Microsoft::Sharepoint::WebUtils::getUnescapedString(const std::string & escapedString)
 {
 	std::string tempBuffer;
 	char *curlUnescapedString = curl_unescape(escapedString.data(), static_cast<int>(escapedString.length()));
@@ -240,14 +256,14 @@ std::string Microsoft::Sharepoint::RestUtils::getUnescapedString(const std::stri
 	return tempBuffer;
 }
 
-size_t Microsoft::Sharepoint::RestUtils::curlWriteFunction(void * buffer, size_t size, size_t nmemb, void * userp)
+size_t Microsoft::Sharepoint::WebUtils::curlWriteFunction(void * buffer, size_t size, size_t nmemb, void * userp)
 {
 	std::string tempStr(static_cast<const char *>(buffer), nmemb);
 	m_responseBuffer.append(std::move(tempStr));
 	return nmemb * size;
 }
 
-size_t Microsoft::Sharepoint::RestUtils::curlHeaderFunction(void * buffer, size_t size, size_t nmemb, void * userp)
+size_t Microsoft::Sharepoint::WebUtils::curlHeaderFunction(void * buffer, size_t size, size_t nmemb, void * userp)
 {
 	const char *bufferStr = static_cast<const char *>(buffer);
 	std::string s = std::string(bufferStr, size * nmemb);

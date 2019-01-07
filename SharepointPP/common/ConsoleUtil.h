@@ -1,1 +1,1 @@
-void SetStdinEcho(bool enable = true);
+__declspec(dllexport) void SetStdinEcho(bool enable = true);
