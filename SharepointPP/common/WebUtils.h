@@ -3,42 +3,55 @@
 #include <vector>
 #include <map>
 
+#include "WebResponse.h"
+
 namespace Microsoft {
 namespace Sharepoint {
-class WebUtils
+class WebRequest
 {
 public:
-	WebUtils();
-	~WebUtils();
+	__declspec(dllexport) WebRequest();
+	__declspec(dllexport) ~WebRequest();
 	typedef std::vector<std::pair<std::string, std::string>> CookieContainerType;
 	typedef std::vector<std::pair<std::string, std::string>> HeaderContainerType;
-	static bool sendPostRequest(
+
+public:
+	__declspec(dllexport)
+	WebResponse post(
 		const std::string &url,
-		const std::string &data,
-		const std::string &contentType,
-		const CookieContainerType &cookies = WebUtils::CookieContainerType(),
-		const HeaderContainerType &headers = WebUtils::HeaderContainerType());
-	__declspec(dllexport) static bool sendGetRequest(
-		const std::string &url,
-		const WebUtils::CookieContainerType &cookies = WebUtils::CookieContainerType(),
-		const WebUtils::HeaderContainerType &headers = WebUtils::HeaderContainerType());
-	__declspec(dllexport) static bool sendGetRequest(
+		const std::string &data);
+
+public:
+	__declspec(dllexport)
+	WebResponse get(
 		const std::string &url);
-	static WebUtils::CookieContainerType getCookiesAfterRequest();
-	__declspec(dllexport) static std::string getResponseData();
-	static void addCookie(const std::string &name, const std::string &value);
+
+public:
+	__declspec(dllexport)
+	void setContentType(const std::string &contentType);
+	__declspec(dllexport)
+	void addCookie(const std::string &name, const std::string &value);
+	__declspec(dllexport)
+	void setCookies(const WebRequest::CookieContainerType &cookies);
+	__declspec(dllexport)
+	void setHeaders(const WebRequest::HeaderContainerType &headers);
+	__declspec(dllexport)
+	void addHeader(const std::string &name, const std::string &value);
+
+public:
+	__declspec(dllexport)
+	WebRequest::CookieContainerType cookies() const;
+	__declspec(dllexport)
+	WebRequest::HeaderContainerType headers() const;
+
+public:
+	__declspec(dllexport)
 	static std::string getUnescapedString(const std::string &escapedString);
 
 private:
-	static size_t curlWriteFunction(void *buffer, size_t size, size_t nmemb, void *userp);
-	static size_t curlHeaderFunction(void *buffer, size_t size, size_t nmemb, void *userp);
-	static void readCookiesFromResponse();
-
-private:
-	static std::vector<std::pair<std::string, std::string>> m_responseHeaders;
-	static std::string m_responseBuffer;
-	static CookieContainerType m_cookieStore;
-	static void *m_curlHandle;
+	WebRequest::CookieContainerType m_cookies;
+	WebRequest::HeaderContainerType m_header;
+	void *m_curlHandle;
 };
 
 }  // namespace Sharepoint

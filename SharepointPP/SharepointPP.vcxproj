@@ -24,6 +24,7 @@
     <ClCompile Include="authentication\STSRequest.cpp" />
     <ClCompile Include="common\ConsoleUtil.cpp" />
     <ClCompile Include="common\ConversionUtils.cpp" />
+    <ClCompile Include="common\WebResponse.cpp" />
     <ClCompile Include="common\WebUtils.cpp" />
     <ClCompile Include="common\tinyxml2.cpp" />
     <ClCompile Include="common\TimeUtils.cpp" />
@@ -34,6 +35,7 @@
     <ClInclude Include="authentication\STSRequest.h" />
     <ClInclude Include="common\ConsoleUtil.h" />
     <ClInclude Include="common\ConversionUtils.h" />
+    <ClInclude Include="common\WebResponse.h" />
     <ClInclude Include="common\WebUtils.h" />
     <ClInclude Include="common\tinyxml2.h" />
     <ClInclude Include="common\TimeUtils.h" />

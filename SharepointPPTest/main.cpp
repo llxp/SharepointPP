@@ -38,30 +38,34 @@ int main(int argc, char *argv[]) {
 		std::cout << authentication.getSecurityDigest().value() << std::endl;
 	}
 
-	Microsoft::Sharepoint::WebUtils::HeaderContainerType headers;
+	Microsoft::Sharepoint::WebRequest::HeaderContainerType headers;
 	headers.push_back(std::make_pair<std::string, std::string>("X-RequestDigest", authentication.getSecurityDigest().value()));
 	headers.push_back(std::make_pair<std::string, std::string>("accept", "application/json;odata=verbose"));
-	Microsoft::Sharepoint::WebUtils::CookieContainerType cookies = authentication.getSecurityCookies();
-	Microsoft::Sharepoint::WebUtils::sendGetRequest(
-		std::string("https://microsoft.sharepoint.com/teams/DeDOC/_api/web"),
-		cookies,
-		headers);
-	std::string response = Microsoft::Sharepoint::WebUtils::getResponseData();
-	tinyxml2::XMLDocument doc;
-	doc.Parse(response.data());
-	tinyxml2::XMLPrinter printer;
-	doc.Print(&printer);
-	std::cout << "response: " << printer.CStr() << std::endl;
-	tinyxml2::XMLElement *entry = doc.FirstChildElement("entry");
-	if(entry != nullptr) {
-		for (tinyxml2::XMLElement* child = entry->FirstChildElement(); child != nullptr; child = child->NextSiblingElement()) {
-			if (child != nullptr) {
-				//std::cout << child->Name() << std::endl;
-				if (std::string(child->Name()) == std::string("link")) {
-					std::cout << child->Attribute("href") << std::endl;
+	Microsoft::Sharepoint::WebRequest::CookieContainerType cookies = authentication.getSecurityCookies();
+	Microsoft::Sharepoint::WebRequest newRequest;
+	newRequest.setCookies(cookies);
+	newRequest.setHeaders(headers);
+	Microsoft::Sharepoint::WebResponse response = newRequest.get("https://microsoft.sharepoint.com/teams/DeDOC/_api/web");
+	if (response.httpStatusCode() >= 0) {
+		std::string responseData = response.response();
+		tinyxml2::XMLDocument doc;
+		doc.Parse(responseData.data());
+		tinyxml2::XMLPrinter printer;
+		doc.Print(&printer);
+		std::cout << "response: " << printer.CStr() << std::endl;
+		tinyxml2::XMLElement *entry = doc.FirstChildElement("entry");
+		if(entry != nullptr) {
+			for (tinyxml2::XMLElement* child = entry->FirstChildElement(); child != nullptr; child = child->NextSiblingElement()) {
+				if (child != nullptr) {
+					//std::cout << child->Name() << std::endl;
+					if (std::string(child->Name()) == std::string("link")) {
+						std::cout << child->Attribute("href") << std::endl;
+					}
 				}
 			}
 		}
+	} else {
+		std::cout << "request failed..." << std::endl;
 	}
 	/*XMLDocument *doc = prepareSoapRequest(username.data(), password.data(), endpoint);
 	if (doc != nullptr) {

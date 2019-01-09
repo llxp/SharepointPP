@@ -7,23 +7,33 @@
 
 #include "ConversionUtils.h"
 
-using Microsoft::Sharepoint::WebUtils;
+using Microsoft::Sharepoint::WebRequest;
+using Microsoft::Sharepoint::WebResponse;
 
-std::vector<std::pair<std::string, std::string>> WebUtils::m_responseHeaders;
-std::string WebUtils::m_responseBuffer;
-WebUtils::CookieContainerType WebUtils::m_cookieStore;
-void *WebUtils::m_curlHandle;
+class GlobalCurlInit
+{
+public:
+	GlobalCurlInit()
+	{
+		curl_global_init(CURL_GLOBAL_ALL);
+	}
+	~GlobalCurlInit()
+	{
+		curl_global_cleanup();
+	}
+};
+
+static GlobalCurlInit globalCurlInstance;
 
 std::string timeStampToHReadble(const time_t rawtime, const std::string &formatString);
 std::string reformatCookie(const std::string &host, const std::string &value, const std::string &path, bool httpOnly, bool secure, size_t expireDate);
-void readAllCookies(struct curl_slist *cookieStruct);
 
-WebUtils::WebUtils()
+WebRequest::WebRequest()
 {
 }
 
 
-WebUtils::~WebUtils()
+WebRequest::~WebRequest()
 {
 }
 
@@ -85,7 +95,7 @@ bool addOrReplaceHeader(struct curl_slist *headerStruct, const std::string &head
 	return false;
 }
 
-void addCustomHeaderToHeaderStruct(const WebUtils::HeaderContainerType &headers, struct curl_slist *headerStruct)
+void addCustomHeaderToHeaderStruct(const WebRequest::HeaderContainerType &headers, struct curl_slist *&headerStruct)
 {
 	for (auto &header : headers) {
 		if (!addOrReplaceHeader(headerStruct, header.first, header.second)) {
@@ -94,98 +104,110 @@ void addCustomHeaderToHeaderStruct(const WebUtils::HeaderContainerType &headers,
 	}
 }
 
-std::string cookieToString(struct curl_slist *cookieStruct)
+class WebResponseImpl : public WebResponse
 {
-	return std::string(cookieStruct->data, strlen(cookieStruct->data));
-}
-
-std::vector<std::string> splitCookieString(std::string &&cookieString)
-{
-	std::istringstream f(cookieString);
-	std::string s;
-	std::vector<std::string> cookieStrings;
-	while (getline(f, s, '\t')) {
-		cookieStrings.push_back(s);
+public:
+	virtual ~WebResponseImpl()
+	{
 	}
-	return cookieStrings;
-}
 
-void readSingleCookie(struct curl_slist *cookieStruct)
-{
-	std::vector<std::string> cookieStrings(
-		std::move(splitCookieString(
+	void setCURLFunctions()
+	{
+		curl_easy_setopt(m_curlHandle, CURLOPT_WRITEFUNCTION, WebResponse::curlWriteFunction);
+		curl_easy_setopt(m_curlHandle, CURLOPT_HEADERFUNCTION, WebResponse::curlHeaderFunction);
+	}
+
+	void readCookiesFromResponse()
+	{
+		CURLcode res;
+		struct curl_slist *cookies;
+
+		res = curl_easy_getinfo(m_curlHandle, CURLINFO_COOKIELIST, &cookies);
+		if(res != CURLE_OK) {
+			fprintf(stderr, "Curl curl_easy_getinfo failed: %s\n",
+				curl_easy_strerror(res));
+		}
+		readAllCookies(cookies);
+		curl_slist_free_all(cookies);
+	}
+
+	static std::string cookieToString(struct curl_slist *cookieStruct)
+	{
+		return std::string(cookieStruct->data, strlen(cookieStruct->data));
+	}
+
+	static std::vector<std::string> splitCookieString(std::string &&cookieString)
+	{
+		std::istringstream f(cookieString);
+		std::string s;
+		std::vector<std::string> cookieStrings;
+		while (getline(f, s, '\t')) {
+			cookieStrings.push_back(s);
+		}
+		return cookieStrings;
+	}
+
+	void readAllCookies(struct curl_slist *cookieStruct)
+	{
+		if (cookieStruct != nullptr) {
+			for (struct curl_slist *currentStruct = cookieStruct; currentStruct->next != nullptr; currentStruct = currentStruct->next) {
+				readSingleCookie(currentStruct);
+			}
+		}
+	}
+
+	void readSingleCookie(struct curl_slist *cookieStruct)
+	{
+		std::vector<std::string> cookieStrings(
+			std::move(splitCookieString(
 			std::move(cookieToString(cookieStruct)))));
-	if (cookieStrings.size() >= 6) {
-		bool httpOnly = false;
-		bool secure = false;
-		std::string host = "";
-		std::string path(cookieStrings[2]);
-		std::string name(cookieStrings[5]);
-		std::string value = "";
-		size_t expireDate(ConversionUtils::stringToSize_T(cookieStrings[4]));
+		if (cookieStrings.size() >= 6) {
+			bool httpOnly = false;
+			bool secure = false;
+			std::string host = "";
+			std::string path(cookieStrings[2]);
+			std::string name(cookieStrings[5]);
+			std::string value = "";
+			size_t expireDate(ConversionUtils::stringToSize_T(cookieStrings[4]));
 
-		if (cookieStrings[0].length() >= std::string("#HttpOnly_").length() &&
-			cookieStrings[0].substr(0, std::string("#HttpOnly_").length()) == std::string("#HttpOnly_")) {
-			httpOnly = true;
-			host = cookieStrings[0].substr(std::string("#HttpOnly_").length());
-		} else {
-			host = cookieStrings[0];
-		}
+			if (cookieStrings[0].length() >= std::string("#HttpOnly_").length() &&
+				cookieStrings[0].substr(0, std::string("#HttpOnly_").length()) == std::string("#HttpOnly_")) {
+				httpOnly = true;
+				host = cookieStrings[0].substr(std::string("#HttpOnly_").length());
+			} else {
+				host = cookieStrings[0];
+			}
 
-		if (cookieStrings[3].length() > 0 && cookieStrings[3] == "TRUE") {
-			secure = true;
-		}
+			if (cookieStrings[3].length() > 0 && cookieStrings[3] == "TRUE") {
+				secure = true;
+			}
 
-		if (cookieStrings.size() >= 7) {
-			value = cookieStrings[6];
-		}
+			if (cookieStrings.size() >= 7) {
+				value = cookieStrings[6];
+			}
 
-		WebUtils::addCookie(name, reformatCookie(host, value, path, httpOnly, secure, expireDate));
-	}
-}
-
-void readAllCookies(struct curl_slist *cookieStruct)
-{
-	if (cookieStruct != nullptr) {
-		for (struct curl_slist *currentStruct = cookieStruct; currentStruct->next != nullptr; currentStruct = currentStruct->next) {
-			readSingleCookie(currentStruct);
+			m_cookieStore.push_back(std::pair<std::string, std::string>(name, reformatCookie(host, value, path, httpOnly, secure, expireDate)));
 		}
 	}
-}
 
-void WebUtils::readCookiesFromResponse()
-{
-	CURLcode res;
-	struct curl_slist *cookies;
-
-	res = curl_easy_getinfo(m_curlHandle, CURLINFO_COOKIELIST, &cookies);
-	if(res != CURLE_OK) {
-		fprintf(stderr, "Curl curl_easy_getinfo failed: %s\n",
-			curl_easy_strerror(res));
+	void setCURLHandle(CURL *handle)
+	{
+		m_curlHandle = handle;
 	}
-	readAllCookies(cookies);
-	curl_slist_free_all(cookies);
-}
+};
 
-bool WebUtils::sendPostRequest(
+WebResponse WebRequest::post(
 	const std::string &url,
-	const std::string &data,
-	const std::string &contentType,
-	const CookieContainerType &cookies,
-	const HeaderContainerType &headers)
+	const std::string &data)
 {
-	// clear all headers from previous request
-	m_responseHeaders.clear();
-	// clear the response buffer from previous request
-	m_responseBuffer.clear();
-	// clear all the cookies from previous request
-	m_cookieStore.clear();
+	WebResponseImpl response;
 
 	// init new curl handle
-	curl_global_init(CURL_GLOBAL_ALL);
 	m_curlHandle = curl_easy_init();
+	response.setCURLHandle(m_curlHandle);
 	if (!m_curlHandle) {
-		return false;
+		response.setHttpStatusCode(-1);
+		return std::move(response);
 	}
 
 	// set url for the request
@@ -197,39 +219,26 @@ bool WebUtils::sendPostRequest(
 
 	struct curl_slist *headerStruct = nullptr;
 
-	if (contentType.length() > 0) {
-		std::string contentTypeCopy = contentType;
-		std::string contentTypePrefix = contentTypeCopy.substr(0, std::string("Content-Type:").length());
-		if (
-			contentTypePrefix != std::string("Content-Type:") &&
-			contentTypePrefix != std::string("content-Type:") &&
-			contentTypePrefix != std::string("Content-type:") &&
-			contentTypePrefix != std::string("content-type:")) {
-			contentTypeCopy = std::string("Content-Type:") + contentTypeCopy;
-		}
-		headerStruct = curl_slist_append(headerStruct, contentTypeCopy.data());
-	}
-
 	if (data.length() == 0) {
-		std::string contentLengthHeader("Content-Length: 0");
-		headerStruct = curl_slist_append(headerStruct, contentLengthHeader.data());
+		m_header.push_back(std::pair<std::string, std::string>("Content-Length", "0"));
 	}
 
-	addCustomHeaderToHeaderStruct(headers, headerStruct);
+	addCustomHeaderToHeaderStruct(m_header, headerStruct);
 
 	// set the header structure to the curl handle
 	if (headerStruct != nullptr) {
 		curl_easy_setopt(m_curlHandle, CURLOPT_HTTPHEADER, headerStruct);
 	}
 
+	// set the post data
 	if (data.length() > 0) {
 		curl_easy_setopt(m_curlHandle, CURLOPT_POSTFIELDS, data.data());
 	}
 
 	// set the cookies for the request
-	if (cookies.size() > 0) {
+	if (m_cookies.size() > 0) {
 		std::string cookieString;
-		for (WebUtils::CookieContainerType::const_iterator it = cookies.begin(); it != cookies.end(); ++it) {
+		for (WebRequest::CookieContainerType::const_iterator it = m_cookies.begin(); it != m_cookies.end(); ++it) {
 			cookieString += std::move(it->first + '=' + it->second);
 		}
 		curl_easy_setopt(m_curlHandle, CURLOPT_COOKIE, cookieString.data());
@@ -240,9 +249,13 @@ bool WebUtils::sendPostRequest(
 #endif
 
 	// set the write function for getting the output from the response
-	curl_easy_setopt(m_curlHandle, CURLOPT_WRITEFUNCTION, curlWriteFunction);
+	//curl_easy_setopt(m_curlHandle, CURLOPT_WRITEFUNCTION, WebResponse::curlWriteFunction);
 	// set the header function for getting the headers from the response
-	curl_easy_setopt(m_curlHandle, CURLOPT_HEADERFUNCTION, curlHeaderFunction);
+	//curl_easy_setopt(m_curlHandle, CURLOPT_HEADERFUNCTION, WebResponse::curlHeaderFunction);
+	response.setCURLFunctions();
+	WebResponse *this_ = static_cast<WebResponse *>(&response);
+	curl_easy_setopt(m_curlHandle, CURLOPT_WRITEDATA, this_);
+	curl_easy_setopt(m_curlHandle, CURLOPT_HEADERDATA, this_);
 
 	// perform the actual request
 	CURLcode success = curl_easy_perform(m_curlHandle);
@@ -250,11 +263,11 @@ bool WebUtils::sendPostRequest(
 	// check if the request was successful
 	if(success != CURLE_OK) {
 		fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(success));
+		response.setHttpStatusCode(-2);
+		return std::move(response);
 	}
 
-	readCookiesFromResponse();
-
-	curl_easy_cleanup(m_curlHandle);
+	response.readCookiesFromResponse();
 
 	if (headerStruct != nullptr) {
 		curl_slist_free_all(headerStruct);
@@ -263,26 +276,21 @@ bool WebUtils::sendPostRequest(
 
 	m_curlHandle = nullptr;
 
-	return success == CURLE_OK;
+	return std::move(response);
 }
 
-bool Microsoft::Sharepoint::WebUtils::sendGetRequest(
-	const std::string & url,
-	const WebUtils::CookieContainerType & cookies,
-	const WebUtils::HeaderContainerType & headers)
+WebResponse WebRequest::get(
+	const std::string & url)
 {
-	// clear all headers from previous request
-	m_responseHeaders.clear();
-	// clear the response buffer from previous request
-	m_responseBuffer.clear();
-	// clear all the cookies from previous request
-	m_cookieStore.clear();
+
+	WebResponseImpl response;
 
 	// init new curl handle
-	curl_global_init(CURL_GLOBAL_ALL);
 	m_curlHandle = curl_easy_init();
+	response.setCURLHandle(m_curlHandle);
 	if (!m_curlHandle) {
-		return false;
+		response.setHttpStatusCode(-1);
+		return std::move(response);
 	}
 
 	// set url for the request
@@ -294,7 +302,7 @@ bool Microsoft::Sharepoint::WebUtils::sendGetRequest(
 
 	struct curl_slist *headerStruct = nullptr;
 
-	addCustomHeaderToHeaderStruct(headers, headerStruct);
+	addCustomHeaderToHeaderStruct(m_header, headerStruct);
 
 	// set the header structure to the curl handle
 	if (headerStruct != nullptr) {
@@ -302,9 +310,9 @@ bool Microsoft::Sharepoint::WebUtils::sendGetRequest(
 	}
 
 	// set the cookies for the request
-	if (cookies.size() > 0) {
+	if (m_cookies.size() > 0) {
 		std::string cookieString;
-		for (WebUtils::CookieContainerType::const_iterator it = cookies.begin(); it != cookies.end(); ++it) {
+		for (WebRequest::CookieContainerType::const_iterator it = m_cookies.begin(); it != m_cookies.end(); ++it) {
 			cookieString += std::move(it->first + '=' + it->second);
 		}
 		curl_easy_setopt(m_curlHandle, CURLOPT_COOKIE, cookieString.data());
@@ -314,22 +322,20 @@ bool Microsoft::Sharepoint::WebUtils::sendGetRequest(
 	curl_easy_setopt(m_curlHandle, CURLOPT_VERBOSE, 1L);
 #endif
 
-	// set the write function for getting the output from the response
-	curl_easy_setopt(m_curlHandle, CURLOPT_WRITEFUNCTION, curlWriteFunction);
-	// set the header function for getting the headers from the response
-	curl_easy_setopt(m_curlHandle, CURLOPT_HEADERFUNCTION, curlHeaderFunction);
+	response.setCURLFunctions();
+	WebResponse *this_ = static_cast<WebResponse *>(&response);
+	curl_easy_setopt(m_curlHandle, CURLOPT_WRITEDATA, this_);
+	curl_easy_setopt(m_curlHandle, CURLOPT_HEADERDATA, this_);
 
 	// perform the actual request
-	CURLcode success = curl_easy_perform(m_curlHandle);
+	CURLcode responseCode = curl_easy_perform(m_curlHandle);
 
 	// check if the request was successful
-	if(success != CURLE_OK) {
-		fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(success));
+	if(responseCode != CURLE_OK) {
+		fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(responseCode));
+		response.setHttpStatusCode(-2);
+		return std::move(response);
 	}
-
-	readCookiesFromResponse();
-
-	curl_easy_cleanup(m_curlHandle);
 
 	if (headerStruct != nullptr) {
 		curl_slist_free_all(headerStruct);
@@ -337,31 +343,57 @@ bool Microsoft::Sharepoint::WebUtils::sendGetRequest(
 	}
 
 	m_curlHandle = nullptr;
-
-	return success == CURLE_OK;
+	
+	return std::move(response);
 }
 
-bool Microsoft::Sharepoint::WebUtils::sendGetRequest(const std::string & url)
+void WebRequest::setContentType(const std::string & contentType)
 {
-	return sendGetRequest(url, WebUtils::CookieContainerType(), WebUtils::HeaderContainerType());
+	if (contentType.length() > 0) {
+		std::string contentTypeCopy = contentType;
+		std::string contentTypePrefix = contentTypeCopy.substr(0, std::string("Content-Type:").length());
+		if (
+			contentTypePrefix == std::string("Content-Type:") &&
+			contentTypePrefix == std::string("content-Type:") &&
+			contentTypePrefix == std::string("Content-type:") &&
+			contentTypePrefix == std::string("content-type:")) {
+			contentTypeCopy = contentTypeCopy.substr(std::string("Content-Type:").length()-1);
+		}
+		m_header.push_back(std::pair<std::string, std::string>("Content-Type", contentTypeCopy));
+	}
 }
 
-WebUtils::CookieContainerType WebUtils::getCookiesAfterRequest()
+WebRequest::CookieContainerType WebRequest::cookies() const
 {
-	return m_cookieStore;
+	return m_cookies;
 }
 
-std::string Microsoft::Sharepoint::WebUtils::getResponseData()
+WebRequest::HeaderContainerType Microsoft::Sharepoint::WebRequest::headers() const
 {
-	return m_responseBuffer;
+	return m_header;
 }
 
-void Microsoft::Sharepoint::WebUtils::addCookie(const std::string & name, const std::string & value)
+void WebRequest::addCookie(const std::string & name, const std::string & value)
 {
-	m_cookieStore.push_back(std::pair<std::string, std::string>(name, value));
+	m_cookies.push_back(std::pair<std::string, std::string>(name, value));
 }
 
-std::string Microsoft::Sharepoint::WebUtils::getUnescapedString(const std::string & escapedString)
+void WebRequest::setCookies(const WebRequest::CookieContainerType & cookies)
+{
+	m_cookies = cookies;
+}
+
+void Microsoft::Sharepoint::WebRequest::setHeaders(const WebRequest::HeaderContainerType & headers)
+{
+	m_header = headers;
+}
+
+void WebRequest::addHeader(const std::string & name, const std::string & value)
+{
+	m_header.push_back(std::pair<std::string, std::string>(name, value));
+}
+
+std::string WebRequest::getUnescapedString(const std::string & escapedString)
 {
 	std::string tempBuffer;
 	char *curlUnescapedString = curl_unescape(escapedString.data(), static_cast<int>(escapedString.length()));
@@ -369,30 +401,4 @@ std::string Microsoft::Sharepoint::WebUtils::getUnescapedString(const std::strin
 	strcpy(&tempBuffer[0], curlUnescapedString);
 	curl_free(curlUnescapedString);
 	return tempBuffer;
-}
-
-size_t Microsoft::Sharepoint::WebUtils::curlWriteFunction(void * buffer, size_t size, size_t nmemb, void * userp)
-{
-	std::string tempStr(static_cast<const char *>(buffer), nmemb);
-	m_responseBuffer.append(std::move(tempStr));
-	return nmemb * size;
-}
-
-size_t Microsoft::Sharepoint::WebUtils::curlHeaderFunction(void * buffer, size_t size, size_t nmemb, void * userp)
-{
-	const char *bufferStr = static_cast<const char *>(buffer);
-	std::string s = std::string(bufferStr, size * nmemb);
-	size_t pos = s.find(":");
-	if (s.length() > 0 && pos != std::string::npos) {
-		std::string name = s.substr(0, pos);
-		std::string value = s.substr(pos + 1);
-		if (value[0] == ' ') {
-			value = value.substr(1);
-		}
-		if (name.length() > 0) {
-			m_responseHeaders.push_back(
-				std::pair<std::string, std::string>(name, value));
-		}
-	}
-	return size * nmemb;
 }

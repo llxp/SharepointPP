@@ -31,7 +31,7 @@ public:
 	__declspec(dllexport) bool authenticate(std::string && username, std::string && password);
 	__declspec(dllexport) bool tokenIsValid() const;
 	__declspec(dllexport) SecurityDigest getSecurityDigest() const;
-	__declspec(dllexport) WebUtils::CookieContainerType getSecurityCookies() const;
+	__declspec(dllexport) WebRequest::CookieContainerType getSecurityCookies() const;
 
 private:
 	bool login(std::string && username, std::string && password);
@@ -47,7 +47,7 @@ private:
 
 private:
 	SecurityDigest m_securityDigest;
-	WebUtils::CookieContainerType m_securityCookies;
+	WebRequest::CookieContainerType m_securityCookies;
 };
 
 }  // namespace Sharepoint

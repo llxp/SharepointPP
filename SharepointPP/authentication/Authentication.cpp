@@ -12,7 +12,7 @@
 
 using Microsoft::Sharepoint::Authentication;
 using Microsoft::Sharepoint::SecurityDigest;
-using Microsoft::Sharepoint::WebUtils;
+using Microsoft::Sharepoint::WebRequest;
 
 Authentication::Authentication()
 {
@@ -71,7 +71,7 @@ SecurityDigest Authentication::getSecurityDigest() const
 	return m_securityDigest;
 }
 
-WebUtils::CookieContainerType Microsoft::Sharepoint::Authentication::getSecurityCookies() const
+WebRequest::CookieContainerType Microsoft::Sharepoint::Authentication::getSecurityCookies() const
 {
 	return m_securityCookies;
 }
@@ -82,27 +82,33 @@ bool Authentication::login(std::string && username, std::string && password)
 	std::string preparedSoapRequest = getPreparedSoapData(std::move(username), std::move(password), m_endpoint);
 	if (preparedSoapRequest.length() > 0) {
 		// send the soap request to the sts server
-		if (WebUtils::sendPostRequest(m_stsEndpoint, std::move(preparedSoapRequest), "application/xml")) {
+		WebRequest stsRequest;
+		stsRequest.setContentType("application/xml");
+		WebResponse stsResponse = stsRequest.post(m_stsEndpoint, std::move(preparedSoapRequest));
+		if (stsResponse.httpStatusCode() >= 0) {
 			// got the response from the sts server
-			std::string responseData = WebUtils::getResponseData();
+			std::string responseData = stsResponse.response();
 			if (responseData.length() > 0) {
 				// parse the response from the sts server to get the binary security token
 				std::string securityCode = parseSTSResponse(std::move(responseData), m_endpoint);
 				if (securityCode.length() > 0) {
 					// send the security token to the default login page of the sharepoint server
-					if (WebUtils::sendPostRequest(m_defaultLoginPage, securityCode, "")) {
+					WebRequest loginPageRequest;
+					WebResponse loginPageResponse = loginPageRequest.post(m_defaultLoginPage, std::move(securityCode));
+					if (loginPageResponse.httpStatusCode() >= 0) {
 						// got both important cookies from the default login page of the sharepoint server
-						responseData = WebUtils::getResponseData();
-						if (responseData.length() > 0) {
-							m_securityCookies = WebUtils::getCookiesAfterRequest();
-							if (m_securityCookies.size() > 0) {
-								if (WebUtils::sendPostRequest(m_contextInfoUrl, "", "application/x-www-form-urlencoded", m_securityCookies)) {
-									// got the request digest from the sharepoint server
-									responseData = WebUtils::getResponseData();
-									parseContextInfoResponse(std::move(responseData));
-									if (tokenIsValid()) {
-										return true;
-									}
+						m_securityCookies = loginPageResponse.cookies();
+						if (m_securityCookies.size() > 0) {
+							WebRequest contextInfoRequest;
+							contextInfoRequest.setContentType("application/x-www-form-urlencoded");
+							contextInfoRequest.setCookies(m_securityCookies);
+							WebResponse contextInfoResponse = contextInfoRequest.post(m_contextInfoUrl, "");
+							if (contextInfoResponse.httpStatusCode() >= 0) {
+								// got the request digest from the sharepoint server
+								responseData = contextInfoResponse.response();
+								parseContextInfoResponse(std::move(responseData));
+								if (tokenIsValid()) {
+									return true;
 								}
 							}
 						}
@@ -208,7 +214,7 @@ std::string Authentication::parseSTSResponse(std::string && responseXml, const s
 				if(requestedSecurityToken != nullptr) {
 					tinyxml2::XMLElement *binarySecurityToken = requestedSecurityToken->FirstChildElement("wsse:BinarySecurityToken");
 					if(binarySecurityToken != nullptr) {
-						return WebUtils::getUnescapedString(binarySecurityToken->GetText());
+						return WebRequest::getUnescapedString(binarySecurityToken->GetText());
 					}
 				}
 			}

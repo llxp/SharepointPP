@@ -51,6 +51,9 @@
     <ClCompile Include="common\ConversionUtils.cpp">
       <Filter>Source Files\common</Filter>
     </ClCompile>
+    <ClCompile Include="common\WebResponse.cpp">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="authentication\Authentication.h">
@@ -76,6 +79,9 @@
     </ClInclude>
     <ClInclude Include="common\ConversionUtils.h">
       <Filter>Header Files\common</Filter>
+    </ClInclude>
+    <ClInclude Include="common\WebResponse.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
