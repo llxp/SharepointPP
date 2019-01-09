@@ -36,9 +36,6 @@
     <ClCompile Include="authentication\SecurityDigest.cpp">
       <Filter>Source Files\authentication</Filter>
     </ClCompile>
-    <ClCompile Include="authentication\tinyxml2.cpp">
-      <Filter>Source Files\authentication</Filter>
-    </ClCompile>
     <ClCompile Include="common\ConsoleUtil.cpp">
       <Filter>Source Files\common</Filter>
     </ClCompile>
@@ -48,8 +45,11 @@
     <ClCompile Include="common\WebUtils.cpp">
       <Filter>Source Files\common</Filter>
     </ClCompile>
+    <ClCompile Include="common\tinyxml2.cpp">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
     <ClCompile Include="common\ConversionUtils.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\common</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -62,9 +62,6 @@
     <ClInclude Include="authentication\STSRequest.h">
       <Filter>Header Files\authentication</Filter>
     </ClInclude>
-    <ClInclude Include="authentication\tinyxml2.h">
-      <Filter>Header Files\authentication</Filter>
-    </ClInclude>
     <ClInclude Include="common\ConsoleUtil.h">
       <Filter>Header Files\common</Filter>
     </ClInclude>
@@ -74,8 +71,11 @@
     <ClInclude Include="common\WebUtils.h">
       <Filter>Header Files\common</Filter>
     </ClInclude>
+    <ClInclude Include="common\tinyxml2.h">
+      <Filter>Header Files\common</Filter>
+    </ClInclude>
     <ClInclude Include="common\ConversionUtils.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\common</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -11,7 +11,7 @@ using Microsoft::Sharepoint::WebUtils;
 
 std::vector<std::pair<std::string, std::string>> WebUtils::m_responseHeaders;
 std::string WebUtils::m_responseBuffer;
-WebUtils::cookieType WebUtils::m_cookieStore;
+WebUtils::CookieContainerType WebUtils::m_cookieStore;
 void *WebUtils::m_curlHandle;
 
 std::string timeStampToHReadble(const time_t rawtime, const std::string &formatString);
@@ -65,6 +65,35 @@ std::string reformatCookie(const std::string &host, const std::string &value, co
 	return output;
 }
 
+bool addOrReplaceHeader(struct curl_slist *headerStruct, const std::string &headerName, const std::string &headerValue)
+{
+	if (headerStruct != nullptr) {
+		std::string headerData(headerStruct->data);
+		if (headerData.length() > headerName.length() &&
+			headerData.substr(0, headerName.length()) == headerName) {
+			free(headerStruct->data);
+			headerStruct->data = new char[headerName.length() + 1 + headerValue.length() + 1];
+			std::string tempBuffer(headerName + ": " + headerValue);
+			strncpy(headerStruct->data, tempBuffer.data(), tempBuffer.length());
+			headerStruct->data[tempBuffer.length()] = '\0';
+			return true;
+		}
+		if (headerStruct->next != nullptr) {
+			return addOrReplaceHeader(headerStruct->next, headerName, headerValue);
+		}
+	}
+	return false;
+}
+
+void addCustomHeaderToHeaderStruct(const WebUtils::HeaderContainerType &headers, struct curl_slist *headerStruct)
+{
+	for (auto &header : headers) {
+		if (!addOrReplaceHeader(headerStruct, header.first, header.second)) {
+			headerStruct = curl_slist_append(headerStruct, std::string(header.first + ": " + header.second).data());
+		}
+	}
+}
+
 std::string cookieToString(struct curl_slist *cookieStruct)
 {
 	return std::string(cookieStruct->data, strlen(cookieStruct->data));
@@ -102,12 +131,15 @@ void readSingleCookie(struct curl_slist *cookieStruct)
 		} else {
 			host = cookieStrings[0];
 		}
+
 		if (cookieStrings[3].length() > 0 && cookieStrings[3] == "TRUE") {
 			secure = true;
 		}
+
 		if (cookieStrings.size() >= 7) {
 			value = cookieStrings[6];
 		}
+
 		WebUtils::addCookie(name, reformatCookie(host, value, path, httpOnly, secure, expireDate));
 	}
 }
@@ -115,19 +147,18 @@ void readSingleCookie(struct curl_slist *cookieStruct)
 void readAllCookies(struct curl_slist *cookieStruct)
 {
 	if (cookieStruct != nullptr) {
-		readSingleCookie(cookieStruct);
-		if (cookieStruct->next != nullptr) {
-			readAllCookies(cookieStruct->next);
+		for (struct curl_slist *currentStruct = cookieStruct; currentStruct->next != nullptr; currentStruct = currentStruct->next) {
+			readSingleCookie(currentStruct);
 		}
 	}
 }
 
-void readCookies(CURL *curl)
+void WebUtils::readCookiesFromResponse()
 {
 	CURLcode res;
 	struct curl_slist *cookies;
 
-	res = curl_easy_getinfo(curl, CURLINFO_COOKIELIST, &cookies);
+	res = curl_easy_getinfo(m_curlHandle, CURLINFO_COOKIELIST, &cookies);
 	if(res != CURLE_OK) {
 		fprintf(stderr, "Curl curl_easy_getinfo failed: %s\n",
 			curl_easy_strerror(res));
@@ -136,13 +167,17 @@ void readCookies(CURL *curl)
 	curl_slist_free_all(cookies);
 }
 
-bool Microsoft::Sharepoint::WebUtils::sendPostRequest(const std::string &url, const std::string &data, const std::string &contentType, const cookieType &cookies)
+bool WebUtils::sendPostRequest(
+	const std::string &url,
+	const std::string &data,
+	const std::string &contentType,
+	const CookieContainerType &cookies,
+	const HeaderContainerType &headers)
 {
 	// clear all headers from previous request
 	m_responseHeaders.clear();
 	// clear the response buffer from previous request
 	m_responseBuffer.clear();
-	// get new hendle for performing the request
 	// clear all the cookies from previous request
 	m_cookieStore.clear();
 
@@ -160,7 +195,7 @@ bool Microsoft::Sharepoint::WebUtils::sendPostRequest(const std::string &url, co
 	// start cookie engine
 	curl_easy_setopt(m_curlHandle, CURLOPT_COOKIEFILE, "");
 
-	struct curl_slist *headers = nullptr;
+	struct curl_slist *headerStruct = nullptr;
 
 	if (contentType.length() > 0) {
 		std::string contentTypeCopy = contentType;
@@ -172,29 +207,29 @@ bool Microsoft::Sharepoint::WebUtils::sendPostRequest(const std::string &url, co
 			contentTypePrefix != std::string("content-type:")) {
 			contentTypeCopy = std::string("Content-Type:") + contentTypeCopy;
 		}
-		headers = curl_slist_append(headers, contentTypeCopy.data());
+		headerStruct = curl_slist_append(headerStruct, contentTypeCopy.data());
 	}
 
 	if (data.length() == 0) {
 		std::string contentLengthHeader("Content-Length: 0");
-		headers = curl_slist_append(headers, contentLengthHeader.data());
+		headerStruct = curl_slist_append(headerStruct, contentLengthHeader.data());
 	}
 
+	addCustomHeaderToHeaderStruct(headers, headerStruct);
+
 	// set the header structure to the curl handle
-	if (headers != nullptr) {
-		curl_easy_setopt(m_curlHandle, CURLOPT_HTTPHEADER, headers);
+	if (headerStruct != nullptr) {
+		curl_easy_setopt(m_curlHandle, CURLOPT_HTTPHEADER, headerStruct);
 	}
 
 	if (data.length() > 0) {
 		curl_easy_setopt(m_curlHandle, CURLOPT_POSTFIELDS, data.data());
-		//curl_easy_setopt(m_curlHandle, CURLOPT_POSTFIELDSIZE, data.length());
-		//curl_easy_setopt(m_curlHandle, CURLOPT_INFILESIZE,(curl_off_t)data.size());
 	}
 
 	// set the cookies for the request
 	if (cookies.size() > 0) {
 		std::string cookieString;
-		for (std::vector<std::pair<std::string, std::string>>::const_iterator it = cookies.begin(); it != cookies.end(); ++it) {
+		for (WebUtils::CookieContainerType::const_iterator it = cookies.begin(); it != cookies.end(); ++it) {
 			cookieString += std::move(it->first + '=' + it->second);
 		}
 		curl_easy_setopt(m_curlHandle, CURLOPT_COOKIE, cookieString.data());
@@ -217,13 +252,13 @@ bool Microsoft::Sharepoint::WebUtils::sendPostRequest(const std::string &url, co
 		fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(success));
 	}
 
-	readCookies(m_curlHandle);
+	readCookiesFromResponse();
 
 	curl_easy_cleanup(m_curlHandle);
 
-	if (headers != nullptr) {
-		curl_slist_free_all(headers);
-		headers = nullptr;
+	if (headerStruct != nullptr) {
+		curl_slist_free_all(headerStruct);
+		headerStruct = nullptr;
 	}
 
 	m_curlHandle = nullptr;
@@ -231,7 +266,87 @@ bool Microsoft::Sharepoint::WebUtils::sendPostRequest(const std::string &url, co
 	return success == CURLE_OK;
 }
 
-WebUtils::cookieType WebUtils::getCookiesAfterRequest()
+bool Microsoft::Sharepoint::WebUtils::sendGetRequest(
+	const std::string & url,
+	const WebUtils::CookieContainerType & cookies,
+	const WebUtils::HeaderContainerType & headers)
+{
+	// clear all headers from previous request
+	m_responseHeaders.clear();
+	// clear the response buffer from previous request
+	m_responseBuffer.clear();
+	// clear all the cookies from previous request
+	m_cookieStore.clear();
+
+	// init new curl handle
+	curl_global_init(CURL_GLOBAL_ALL);
+	m_curlHandle = curl_easy_init();
+	if (!m_curlHandle) {
+		return false;
+	}
+
+	// set url for the request
+	curl_easy_setopt(m_curlHandle, CURLOPT_URL, url.data());
+	// set post as method to use for curl
+	curl_easy_setopt(m_curlHandle, CURLOPT_CUSTOMREQUEST, "GET");
+	// start cookie engine
+	curl_easy_setopt(m_curlHandle, CURLOPT_COOKIEFILE, "");
+
+	struct curl_slist *headerStruct = nullptr;
+
+	addCustomHeaderToHeaderStruct(headers, headerStruct);
+
+	// set the header structure to the curl handle
+	if (headerStruct != nullptr) {
+		curl_easy_setopt(m_curlHandle, CURLOPT_HTTPHEADER, headerStruct);
+	}
+
+	// set the cookies for the request
+	if (cookies.size() > 0) {
+		std::string cookieString;
+		for (WebUtils::CookieContainerType::const_iterator it = cookies.begin(); it != cookies.end(); ++it) {
+			cookieString += std::move(it->first + '=' + it->second);
+		}
+		curl_easy_setopt(m_curlHandle, CURLOPT_COOKIE, cookieString.data());
+	}
+
+#ifdef _DEBUG
+	curl_easy_setopt(m_curlHandle, CURLOPT_VERBOSE, 1L);
+#endif
+
+	// set the write function for getting the output from the response
+	curl_easy_setopt(m_curlHandle, CURLOPT_WRITEFUNCTION, curlWriteFunction);
+	// set the header function for getting the headers from the response
+	curl_easy_setopt(m_curlHandle, CURLOPT_HEADERFUNCTION, curlHeaderFunction);
+
+	// perform the actual request
+	CURLcode success = curl_easy_perform(m_curlHandle);
+
+	// check if the request was successful
+	if(success != CURLE_OK) {
+		fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(success));
+	}
+
+	readCookiesFromResponse();
+
+	curl_easy_cleanup(m_curlHandle);
+
+	if (headerStruct != nullptr) {
+		curl_slist_free_all(headerStruct);
+		headerStruct = nullptr;
+	}
+
+	m_curlHandle = nullptr;
+
+	return success == CURLE_OK;
+}
+
+bool Microsoft::Sharepoint::WebUtils::sendGetRequest(const std::string & url)
+{
+	return sendGetRequest(url, WebUtils::CookieContainerType(), WebUtils::HeaderContainerType());
+}
+
+WebUtils::CookieContainerType WebUtils::getCookiesAfterRequest()
 {
 	return m_cookieStore;
 }

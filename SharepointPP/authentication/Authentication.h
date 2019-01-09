@@ -3,6 +3,7 @@
 #include <chrono>
 
 #include "SecurityDigest.h"
+#include "../common/WebUtils.h"
 
 namespace Microsoft {
 namespace Sharepoint {
@@ -29,7 +30,8 @@ public:
 public:
 	__declspec(dllexport) bool authenticate(std::string && username, std::string && password);
 	__declspec(dllexport) bool tokenIsValid() const;
-	__declspec(dllexport) SecurityDigest getSecurityDigest();
+	__declspec(dllexport) SecurityDigest getSecurityDigest() const;
+	__declspec(dllexport) WebUtils::CookieContainerType getSecurityCookies() const;
 
 private:
 	bool login(std::string && username, std::string && password);
@@ -45,6 +47,7 @@ private:
 
 private:
 	SecurityDigest m_securityDigest;
+	WebUtils::CookieContainerType m_securityCookies;
 };
 
 }  // namespace Sharepoint

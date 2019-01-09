@@ -3,12 +3,13 @@
 #include <fstream>
 #include <vector>
 
-#include "../SharepointPP/authentication/tinyxml2.h"
+#include "../SharepointPP/common/tinyxml2.h"
 
 #include "../SharepointPP/authentication/Authentication.h"
 
 //#include "SharepointAuthentication.h"
 #include "../SharepointPP/common/ConsoleUtil.h"
+#include "../SharepointPP/common/WebUtils.h"
 
 using namespace tinyxml2;
 
@@ -35,6 +36,32 @@ int main(int argc, char *argv[]) {
 		std::cout << "authenticated..." << std::endl;
 		std::cout << authentication.getSecurityDigest().isValid() << std::endl;
 		std::cout << authentication.getSecurityDigest().value() << std::endl;
+	}
+
+	Microsoft::Sharepoint::WebUtils::HeaderContainerType headers;
+	headers.push_back(std::make_pair<std::string, std::string>("X-RequestDigest", authentication.getSecurityDigest().value()));
+	headers.push_back(std::make_pair<std::string, std::string>("accept", "application/json;odata=verbose"));
+	Microsoft::Sharepoint::WebUtils::CookieContainerType cookies = authentication.getSecurityCookies();
+	Microsoft::Sharepoint::WebUtils::sendGetRequest(
+		std::string("https://microsoft.sharepoint.com/teams/DeDOC/_api/web"),
+		cookies,
+		headers);
+	std::string response = Microsoft::Sharepoint::WebUtils::getResponseData();
+	tinyxml2::XMLDocument doc;
+	doc.Parse(response.data());
+	tinyxml2::XMLPrinter printer;
+	doc.Print(&printer);
+	std::cout << "response: " << printer.CStr() << std::endl;
+	tinyxml2::XMLElement *entry = doc.FirstChildElement("entry");
+	if(entry != nullptr) {
+		for (tinyxml2::XMLElement* child = entry->FirstChildElement(); child != nullptr; child = child->NextSiblingElement()) {
+			if (child != nullptr) {
+				//std::cout << child->Name() << std::endl;
+				if (std::string(child->Name()) == std::string("link")) {
+					std::cout << child->Attribute("href") << std::endl;
+				}
+			}
+		}
 	}
 	/*XMLDocument *doc = prepareSoapRequest(username.data(), password.data(), endpoint);
 	if (doc != nullptr) {

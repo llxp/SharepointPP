@@ -13,13 +13,13 @@ public:
 	__declspec(dllexport) std::string value() const;
 	__declspec(dllexport) SecurityDigest(const SecurityDigest &other);
 	__declspec(dllexport) SecurityDigest &operator=(SecurityDigest other);
-	_declspec(dllexport) SecurityDigest(SecurityDigest&& other);
+	_declspec(dllexport) SecurityDigest(SecurityDigest&& other) noexcept;
 
 private:
-	static void swap(SecurityDigest& first, SecurityDigest& second); // nothrow
+	static void swap(SecurityDigest& first, SecurityDigest& second) noexcept; // nothrow
 
 private:
-	const char * m_securityDigest;
+	std::string m_securityDigest;
 	size_t m_securityDigestSetTime {0};
 	size_t m_securityDigestTimeout {0};
 };

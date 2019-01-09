@@ -25,7 +25,7 @@
     <ClCompile Include="common\ConsoleUtil.cpp" />
     <ClCompile Include="common\ConversionUtils.cpp" />
     <ClCompile Include="common\WebUtils.cpp" />
-    <ClCompile Include="authentication\tinyxml2.cpp" />
+    <ClCompile Include="common\tinyxml2.cpp" />
     <ClCompile Include="common\TimeUtils.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -35,7 +35,7 @@
     <ClInclude Include="common\ConsoleUtil.h" />
     <ClInclude Include="common\ConversionUtils.h" />
     <ClInclude Include="common\WebUtils.h" />
-    <ClInclude Include="authentication\tinyxml2.h" />
+    <ClInclude Include="common\tinyxml2.h" />
     <ClInclude Include="common\TimeUtils.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

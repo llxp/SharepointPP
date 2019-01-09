@@ -5,7 +5,7 @@
 #include <type_traits>
 
 #include "STSRequest.h"
-#include "tinyxml2.h"
+#include "../common/tinyxml2.h"
 
 #include "../common/WebUtils.h"
 #include "../common/TimeUtils.h"
@@ -66,9 +66,14 @@ bool Authentication::tokenIsValid() const
 	return (&m_securityDigest)->isValid();
 }
 
-SecurityDigest Authentication::getSecurityDigest()
+SecurityDigest Authentication::getSecurityDigest() const
 {
 	return m_securityDigest;
+}
+
+WebUtils::CookieContainerType Microsoft::Sharepoint::Authentication::getSecurityCookies() const
+{
+	return m_securityCookies;
 }
 
 bool Authentication::login(std::string && username, std::string && password)
@@ -89,9 +94,9 @@ bool Authentication::login(std::string && username, std::string && password)
 						// got both important cookies from the default login page of the sharepoint server
 						responseData = WebUtils::getResponseData();
 						if (responseData.length() > 0) {
-							WebUtils::cookieType cookies = WebUtils::getCookiesAfterRequest();
-							if (cookies.size() > 0) {
-								if (WebUtils::sendPostRequest(m_contextInfoUrl, "", "application/x-www-form-urlencoded", cookies)) {
+							m_securityCookies = WebUtils::getCookiesAfterRequest();
+							if (m_securityCookies.size() > 0) {
+								if (WebUtils::sendPostRequest(m_contextInfoUrl, "", "application/x-www-form-urlencoded", m_securityCookies)) {
 									// got the request digest from the sharepoint server
 									responseData = WebUtils::getResponseData();
 									parseContextInfoResponse(std::move(responseData));

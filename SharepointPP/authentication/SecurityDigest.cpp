@@ -5,14 +5,14 @@
 using Microsoft::Sharepoint::SecurityDigest;
 
 SecurityDigest::SecurityDigest() :
-	m_securityDigest(nullptr),
+	m_securityDigest(std::string()),
 	m_securityDigestSetTime(0),
 	m_securityDigestTimeout(0)
 {
 }
 
 SecurityDigest::SecurityDigest(const std::string &value, size_t timeout) :
-	m_securityDigest(strdup(value.data())),
+	m_securityDigest(value),
 	m_securityDigestSetTime(TimeUtils::getCurrentTime()),
 	m_securityDigestTimeout(timeout)
 {
@@ -21,9 +21,6 @@ SecurityDigest::SecurityDigest(const std::string &value, size_t timeout) :
 
 SecurityDigest::~SecurityDigest()
 {
-	if (m_securityDigest != nullptr) {
-		delete[] m_securityDigest;
-	}
 }
 
 bool SecurityDigest::isValid() const
@@ -41,7 +38,7 @@ std::string SecurityDigest::value() const
 }
 
 SecurityDigest::SecurityDigest(const SecurityDigest & other) :
-	m_securityDigest(strdup(other.m_securityDigest)),
+	m_securityDigest(other.m_securityDigest),
 	m_securityDigestSetTime(other.m_securityDigestSetTime),
 	m_securityDigestTimeout(other.m_securityDigestTimeout)
 {
@@ -53,12 +50,13 @@ SecurityDigest & SecurityDigest::operator=(SecurityDigest other)
 	return *this;
 }
 
-SecurityDigest::SecurityDigest(SecurityDigest && other) : SecurityDigest()
+SecurityDigest::SecurityDigest(SecurityDigest && other) noexcept :
+	SecurityDigest()
 {
 	swap(*this, other);
 }
 
-void SecurityDigest::swap(SecurityDigest& first, SecurityDigest& second) // nothrow
+void SecurityDigest::swap(SecurityDigest& first, SecurityDigest& second) noexcept // nothrow
 {
 	using std::swap;
 	swap(first.m_securityDigest, second.m_securityDigest);
