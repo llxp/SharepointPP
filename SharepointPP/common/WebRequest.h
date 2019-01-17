@@ -1,30 +1,34 @@
 #pragma once
+#ifndef COMMON_WEBREQUEST_H_
+#define COMMON_WEBREQUEST_H_
+
 #include <string>
 #include <vector>
 #include <map>
 
 #include "WebResponse.h"
+#include "Url.h"
 
 namespace Microsoft {
 namespace Sharepoint {
 class WebRequest
 {
 public:
-	__declspec(dllexport) WebRequest();
-	__declspec(dllexport) ~WebRequest();
+	__declspec(dllexport) WebRequest() {}
+	__declspec(dllexport) ~WebRequest() {}
 	typedef std::vector<std::pair<std::string, std::string>> CookieContainerType;
 	typedef std::vector<std::pair<std::string, std::string>> HeaderContainerType;
 
 public:
 	__declspec(dllexport)
 	WebResponse post(
-		const std::string &url,
+		const Url &url,
 		const std::string &data);
 
 public:
 	__declspec(dllexport)
 	WebResponse get(
-		const std::string &url);
+		const Url &url);
 
 public:
 	__declspec(dllexport)
@@ -51,8 +55,9 @@ public:
 private:
 	WebRequest::CookieContainerType m_cookies;
 	WebRequest::HeaderContainerType m_header;
-	void *m_curlHandle;
 };
 
 }  // namespace Sharepoint
 }  // namespace Microsoft
+
+#endif  // COMMON_WEBREQUEST_H_

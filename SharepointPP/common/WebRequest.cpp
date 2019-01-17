@@ -1,9 +1,13 @@
-#include "WebUtils.h"
+// Copyright (c) 2011 rubicon IT GmbH
+#include "WebRequest.h"
+
+#include <curl/curl.h>
 
 #include <sstream>
 #include <algorithm>
-
-#include <curl/curl.h>
+#include <utility>
+#include <string>
+#include <vector>
 
 #include "ConversionUtils.h"
 
@@ -12,7 +16,7 @@ using Microsoft::Sharepoint::WebResponse;
 
 class GlobalCurlInit
 {
-public:
+ public:
 	GlobalCurlInit()
 	{
 		curl_global_init(CURL_GLOBAL_ALL);
@@ -25,19 +29,9 @@ public:
 
 static GlobalCurlInit globalCurlInstance;
 
-std::string timeStampToHReadble(const time_t rawtime, const std::string &formatString);
-std::string reformatCookie(const std::string &host, const std::string &value, const std::string &path, bool httpOnly, bool secure, size_t expireDate);
-
-WebRequest::WebRequest()
-{
-}
-
-
-WebRequest::~WebRequest()
-{
-}
-
-std::string timeStampToHReadble(const time_t rawtime, const std::string &formatString)
+std::string timeStampToHReadble(
+	const time_t rawtime,
+	const std::string &formatString)
 {
 	struct tm * dt;
 	char buffer [30];
@@ -46,7 +40,13 @@ std::string timeStampToHReadble(const time_t rawtime, const std::string &formatS
 	return std::string(buffer);
 }
 
-std::string reformatCookie(const std::string &host, const std::string &value, const std::string &path, bool httpOnly, bool secure, size_t expireDate)
+std::string reformatCookie(
+	const std::string &host,
+	const std::string &value,
+	const std::string &path,
+	bool httpOnly,
+	bool secure,
+	size_t expireDate)
 {
 	std::string output;
 	output += value;
@@ -75,14 +75,18 @@ std::string reformatCookie(const std::string &host, const std::string &value, co
 	return output;
 }
 
-bool addOrReplaceHeader(struct curl_slist *headerStruct, const std::string &headerName, const std::string &headerValue)
+bool addOrReplaceHeader(
+	struct curl_slist *headerStruct,
+	const std::string &headerName,
+	const std::string &headerValue)
 {
 	if (headerStruct != nullptr) {
 		std::string headerData(headerStruct->data);
 		if (headerData.length() > headerName.length() &&
 			headerData.substr(0, headerName.length()) == headerName) {
 			free(headerStruct->data);
-			headerStruct->data = new char[headerName.length() + 1 + headerValue.length() + 1];
+			headerStruct->data = new char[
+				headerName.length() + 1 + headerValue.length() + 1];
 			std::string tempBuffer(headerName + ": " + headerValue);
 			strncpy(headerStruct->data, tempBuffer.data(), tempBuffer.length());
 			headerStruct->data[tempBuffer.length()] = '\0';
@@ -95,26 +99,36 @@ bool addOrReplaceHeader(struct curl_slist *headerStruct, const std::string &head
 	return false;
 }
 
-void addCustomHeaderToHeaderStruct(const WebRequest::HeaderContainerType &headers, struct curl_slist *&headerStruct)
+void addCustomHeaderToHeaderStruct(
+	const WebRequest::HeaderContainerType &headers,
+	struct curl_slist *&headerStruct)
 {
 	for (auto &header : headers) {
 		if (!addOrReplaceHeader(headerStruct, header.first, header.second)) {
-			headerStruct = curl_slist_append(headerStruct, std::string(header.first + ": " + header.second).data());
+			headerStruct = curl_slist_append(
+				headerStruct,
+				std::string(header.first + ": " + header.second).data());
 		}
 	}
 }
 
 class WebResponseImpl : public WebResponse
 {
-public:
+ public:
 	virtual ~WebResponseImpl()
 	{
 	}
 
 	void setCURLFunctions()
 	{
-		curl_easy_setopt(m_curlHandle, CURLOPT_WRITEFUNCTION, WebResponse::curlWriteFunction);
-		curl_easy_setopt(m_curlHandle, CURLOPT_HEADERFUNCTION, WebResponse::curlHeaderFunction);
+		curl_easy_setopt(
+			m_curlHandle,
+			CURLOPT_WRITEFUNCTION,
+			WebResponse::curlWriteFunction);
+		curl_easy_setopt(
+			m_curlHandle,
+			CURLOPT_HEADERFUNCTION,
+			WebResponse::curlHeaderFunction);
 	}
 
 	void readCookiesFromResponse()
@@ -150,7 +164,9 @@ public:
 	void readAllCookies(struct curl_slist *cookieStruct)
 	{
 		if (cookieStruct != nullptr) {
-			for (struct curl_slist *currentStruct = cookieStruct; currentStruct->next != nullptr; currentStruct = currentStruct->next) {
+			for (struct curl_slist *currentStruct = cookieStruct;
+				currentStruct->next != nullptr;
+				currentStruct = currentStruct->next) {
 				readSingleCookie(currentStruct);
 			}
 		}
@@ -170,8 +186,10 @@ public:
 			std::string value = "";
 			size_t expireDate(ConversionUtils::stringToSize_T(cookieStrings[4]));
 
-			if (cookieStrings[0].length() >= std::string("#HttpOnly_").length() &&
-				cookieStrings[0].substr(0, std::string("#HttpOnly_").length()) == std::string("#HttpOnly_")) {
+			std::string &hostPart = cookieStrings[0];
+			std::string httpOnlyStr("#HttpOnly_");
+			if (hostPart.length() >= httpOnlyStr.length() &&
+				hostPart.substr(0, httpOnlyStr.length()) == httpOnlyStr) {
 				httpOnly = true;
 				host = cookieStrings[0].substr(std::string("#HttpOnly_").length());
 			} else {
@@ -186,7 +204,10 @@ public:
 				value = cookieStrings[6];
 			}
 
-			m_cookieStore.push_back(std::pair<std::string, std::string>(name, reformatCookie(host, value, path, httpOnly, secure, expireDate)));
+			m_cookies.push_back(
+				std::pair<std::string, std::string>(
+					name, reformatCookie(
+						host, value, path, httpOnly, secure, expireDate)));
 		}
 	}
 
@@ -196,75 +217,87 @@ public:
 	}
 };
 
+class FailedWebRequestResponse :
+	public WebResponse
+{
+ public:
+	explicit FailedWebRequestResponse(long httpStatusCode)
+	{
+		m_httpStatusCode = httpStatusCode;
+	}
+};
+
 WebResponse WebRequest::post(
-	const std::string &url,
+	const Url &url,
 	const std::string &data)
 {
 	WebResponseImpl response;
 
 	// init new curl handle
-	m_curlHandle = curl_easy_init();
-	response.setCURLHandle(m_curlHandle);
-	if (!m_curlHandle) {
-		response.setHttpStatusCode(-1);
-		return std::move(response);
+	CURL *curlHandle = curl_easy_init();
+	response.setCURLHandle(curlHandle);
+	if (!curlHandle) {
+		return FailedWebRequestResponse(-1);
 	}
 
 	// set url for the request
-	curl_easy_setopt(m_curlHandle, CURLOPT_URL, url.data());
+	curl_easy_setopt(
+		curlHandle,
+		CURLOPT_URL,
+		static_cast<std::string>(url).data());
 	// set post as method to use for curl
-	curl_easy_setopt(m_curlHandle, CURLOPT_CUSTOMREQUEST, "POST");
+	curl_easy_setopt(curlHandle, CURLOPT_CUSTOMREQUEST, "POST");
 	// start cookie engine
-	curl_easy_setopt(m_curlHandle, CURLOPT_COOKIEFILE, "");
+	curl_easy_setopt(curlHandle, CURLOPT_COOKIEFILE, "");
 
 	struct curl_slist *headerStruct = nullptr;
 
 	if (data.length() == 0) {
-		m_header.push_back(std::pair<std::string, std::string>("Content-Length", "0"));
+		m_header.push_back(
+			std::pair<std::string, std::string>("Content-Length", "0"));
 	}
 
 	addCustomHeaderToHeaderStruct(m_header, headerStruct);
 
 	// set the header structure to the curl handle
 	if (headerStruct != nullptr) {
-		curl_easy_setopt(m_curlHandle, CURLOPT_HTTPHEADER, headerStruct);
+		curl_easy_setopt(curlHandle, CURLOPT_HTTPHEADER, headerStruct);
 	}
 
 	// set the post data
 	if (data.length() > 0) {
-		curl_easy_setopt(m_curlHandle, CURLOPT_POSTFIELDS, data.data());
+		curl_easy_setopt(curlHandle, CURLOPT_POSTFIELDS, data.data());
 	}
 
 	// set the cookies for the request
 	if (m_cookies.size() > 0) {
 		std::string cookieString;
-		for (WebRequest::CookieContainerType::const_iterator it = m_cookies.begin(); it != m_cookies.end(); ++it) {
+		typedef WebRequest::CookieContainerType::const_iterator ItType;
+		for (ItType it = m_cookies.begin(); it != m_cookies.end(); ++it) {
 			cookieString += std::move(it->first + '=' + it->second);
 		}
-		curl_easy_setopt(m_curlHandle, CURLOPT_COOKIE, cookieString.data());
+		curl_easy_setopt(curlHandle, CURLOPT_COOKIE, cookieString.data());
 	}
 
 #ifdef _DEBUG
-	curl_easy_setopt(m_curlHandle, CURLOPT_VERBOSE, 1L);
+	curl_easy_setopt(curlHandle, CURLOPT_VERBOSE, 1L);
 #endif
 
-	// set the write function for getting the output from the response
-	//curl_easy_setopt(m_curlHandle, CURLOPT_WRITEFUNCTION, WebResponse::curlWriteFunction);
-	// set the header function for getting the headers from the response
-	//curl_easy_setopt(m_curlHandle, CURLOPT_HEADERFUNCTION, WebResponse::curlHeaderFunction);
 	response.setCURLFunctions();
 	WebResponse *this_ = static_cast<WebResponse *>(&response);
-	curl_easy_setopt(m_curlHandle, CURLOPT_WRITEDATA, this_);
-	curl_easy_setopt(m_curlHandle, CURLOPT_HEADERDATA, this_);
+	curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, this_);
+	curl_easy_setopt(curlHandle, CURLOPT_HEADERDATA, this_);
 
 	// perform the actual request
-	CURLcode success = curl_easy_perform(m_curlHandle);
+	CURLcode success = curl_easy_perform(curlHandle);
 
 	// check if the request was successful
 	if(success != CURLE_OK) {
-		fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(success));
-		response.setHttpStatusCode(-2);
-		return std::move(response);
+		fprintf(
+			stderr,
+			"curl_easy_perform() failed: %s\n",
+			curl_easy_strerror(success));
+		return FailedWebRequestResponse(-2);
 	}
 
 	response.readCookiesFromResponse();
@@ -274,31 +307,32 @@ WebResponse WebRequest::post(
 		headerStruct = nullptr;
 	}
 
-	m_curlHandle = nullptr;
+	curlHandle = nullptr;
 
 	return std::move(response);
 }
 
 WebResponse WebRequest::get(
-	const std::string & url)
+	const Url &url)
 {
-
 	WebResponseImpl response;
 
 	// init new curl handle
-	m_curlHandle = curl_easy_init();
-	response.setCURLHandle(m_curlHandle);
-	if (!m_curlHandle) {
-		response.setHttpStatusCode(-1);
-		return std::move(response);
+	CURL *curlHandle = curl_easy_init();
+	response.setCURLHandle(curlHandle);
+	if (!curlHandle) {
+		return FailedWebRequestResponse(-1);
 	}
 
 	// set url for the request
-	curl_easy_setopt(m_curlHandle, CURLOPT_URL, url.data());
+	curl_easy_setopt(
+		curlHandle,
+		CURLOPT_URL,
+		static_cast<std::string>(url).data());
 	// set post as method to use for curl
-	curl_easy_setopt(m_curlHandle, CURLOPT_CUSTOMREQUEST, "GET");
+	curl_easy_setopt(curlHandle, CURLOPT_CUSTOMREQUEST, "GET");
 	// start cookie engine
-	curl_easy_setopt(m_curlHandle, CURLOPT_COOKIEFILE, "");
+	curl_easy_setopt(curlHandle, CURLOPT_COOKIEFILE, "");
 
 	struct curl_slist *headerStruct = nullptr;
 
@@ -306,35 +340,38 @@ WebResponse WebRequest::get(
 
 	// set the header structure to the curl handle
 	if (headerStruct != nullptr) {
-		curl_easy_setopt(m_curlHandle, CURLOPT_HTTPHEADER, headerStruct);
+		curl_easy_setopt(curlHandle, CURLOPT_HTTPHEADER, headerStruct);
 	}
 
 	// set the cookies for the request
 	if (m_cookies.size() > 0) {
 		std::string cookieString;
-		for (WebRequest::CookieContainerType::const_iterator it = m_cookies.begin(); it != m_cookies.end(); ++it) {
+		typedef WebRequest::CookieContainerType::const_iterator ItType;
+		for (ItType it = m_cookies.begin(); it != m_cookies.end(); ++it) {
 			cookieString += std::move(it->first + '=' + it->second);
 		}
-		curl_easy_setopt(m_curlHandle, CURLOPT_COOKIE, cookieString.data());
+		curl_easy_setopt(curlHandle, CURLOPT_COOKIE, cookieString.data());
 	}
 
 #ifdef _DEBUG
-	curl_easy_setopt(m_curlHandle, CURLOPT_VERBOSE, 1L);
+	curl_easy_setopt(curlHandle, CURLOPT_VERBOSE, 1L);
 #endif
 
 	response.setCURLFunctions();
 	WebResponse *this_ = static_cast<WebResponse *>(&response);
-	curl_easy_setopt(m_curlHandle, CURLOPT_WRITEDATA, this_);
-	curl_easy_setopt(m_curlHandle, CURLOPT_HEADERDATA, this_);
+	curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, this_);
+	curl_easy_setopt(curlHandle, CURLOPT_HEADERDATA, this_);
 
 	// perform the actual request
-	CURLcode responseCode = curl_easy_perform(m_curlHandle);
+	CURLcode responseCode = curl_easy_perform(curlHandle);
 
 	// check if the request was successful
 	if(responseCode != CURLE_OK) {
-		fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(responseCode));
-		response.setHttpStatusCode(-2);
-		return std::move(response);
+		fprintf(
+			stderr,
+			"curl_easy_perform() failed: %s\n",
+			curl_easy_strerror(responseCode));
+		return FailedWebRequestResponse(-2);
 	}
 
 	if (headerStruct != nullptr) {
@@ -342,8 +379,8 @@ WebResponse WebRequest::get(
 		headerStruct = nullptr;
 	}
 
-	m_curlHandle = nullptr;
-	
+	curlHandle = nullptr;
+
 	return std::move(response);
 }
 
@@ -351,15 +388,19 @@ void WebRequest::setContentType(const std::string & contentType)
 {
 	if (contentType.length() > 0) {
 		std::string contentTypeCopy = contentType;
-		std::string contentTypePrefix = contentTypeCopy.substr(0, std::string("Content-Type:").length());
+		std::string contentTypePrefix =
+			contentTypeCopy.substr(0, std::string("Content-Type:").length());
 		if (
 			contentTypePrefix == std::string("Content-Type:") &&
 			contentTypePrefix == std::string("content-Type:") &&
 			contentTypePrefix == std::string("Content-type:") &&
 			contentTypePrefix == std::string("content-type:")) {
-			contentTypeCopy = contentTypeCopy.substr(std::string("Content-Type:").length()-1);
+			contentTypeCopy =
+				contentTypeCopy.substr(std::string("Content-Type:").length()-1);
 		}
-		m_header.push_back(std::pair<std::string, std::string>("Content-Type", contentTypeCopy));
+		m_header.push_back(
+			std::pair<std::string, std::string>(
+				"Content-Type", contentTypeCopy));
 	}
 }
 
@@ -368,7 +409,7 @@ WebRequest::CookieContainerType WebRequest::cookies() const
 	return m_cookies;
 }
 
-WebRequest::HeaderContainerType Microsoft::Sharepoint::WebRequest::headers() const
+WebRequest::HeaderContainerType WebRequest::headers() const
 {
 	return m_header;
 }
@@ -383,7 +424,7 @@ void WebRequest::setCookies(const WebRequest::CookieContainerType & cookies)
 	m_cookies = cookies;
 }
 
-void Microsoft::Sharepoint::WebRequest::setHeaders(const WebRequest::HeaderContainerType & headers)
+void WebRequest::setHeaders(const WebRequest::HeaderContainerType & headers)
 {
 	m_header = headers;
 }
@@ -396,9 +437,11 @@ void WebRequest::addHeader(const std::string & name, const std::string & value)
 std::string WebRequest::getUnescapedString(const std::string & escapedString)
 {
 	std::string tempBuffer;
-	char *curlUnescapedString = curl_unescape(escapedString.data(), static_cast<int>(escapedString.length()));
+	char *curlUnescapedString = curl_unescape(
+		escapedString.data(),
+		static_cast<int>(escapedString.length()));
 	tempBuffer.resize(strlen(curlUnescapedString));
-	strcpy(&tempBuffer[0], curlUnescapedString);
+	strncpy(&tempBuffer[0], curlUnescapedString, tempBuffer.length());
 	curl_free(curlUnescapedString);
 	return tempBuffer;
 }

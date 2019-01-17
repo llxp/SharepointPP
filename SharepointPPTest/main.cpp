@@ -9,7 +9,8 @@
 
 //#include "SharepointAuthentication.h"
 #include "../SharepointPP/common/ConsoleUtil.h"
-#include "../SharepointPP/common/WebUtils.h"
+#include "../SharepointPP/common/WebRequest.h"
+#include "../SharepointPP/common/WebResponse.h"
 
 using namespace tinyxml2;
 
@@ -34,18 +35,12 @@ int main(int argc, char *argv[]) {
 	bool authenticated = authentication.authenticate(std::move(username), std::move(password));
 	if (authenticated) {
 		std::cout << "authenticated..." << std::endl;
-		std::cout << authentication.getSecurityDigest().isValid() << std::endl;
-		std::cout << authentication.getSecurityDigest().value() << std::endl;
+		std::cout << authentication.getRequestDigest().isValid() << std::endl;
+		std::cout << authentication.getRequestDigest().value() << std::endl;
 	}
 
-	Microsoft::Sharepoint::WebRequest::HeaderContainerType headers;
-	headers.push_back(std::make_pair<std::string, std::string>("X-RequestDigest", authentication.getSecurityDigest().value()));
-	headers.push_back(std::make_pair<std::string, std::string>("accept", "application/json;odata=verbose"));
-	Microsoft::Sharepoint::WebRequest::CookieContainerType cookies = authentication.getSecurityCookies();
-	Microsoft::Sharepoint::WebRequest newRequest;
-	newRequest.setCookies(cookies);
-	newRequest.setHeaders(headers);
-	Microsoft::Sharepoint::WebResponse response = newRequest.get("https://microsoft.sharepoint.com/teams/DeDOC/_api/web");
+	Microsoft::Sharepoint::WebRequest newRequest = authentication.getPreparedRequest();
+	Microsoft::Sharepoint::WebResponse response = newRequest.get(Url("https://microsoft.sharepoint.com", "/teams/DeDOC/_api/web/lists"));
 	if (response.httpStatusCode() >= 0) {
 		std::string responseData = response.response();
 		tinyxml2::XMLDocument doc;

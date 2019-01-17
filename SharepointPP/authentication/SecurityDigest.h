@@ -20,8 +20,8 @@ private:
 
 private:
 	std::string m_securityDigest;
-	size_t m_securityDigestSetTime {0};
-	size_t m_securityDigestTimeout {0};
+	size_t m_securityDigestSetTime;
+	size_t m_securityDigestTimeout;
 };
 }  // namespace Sharepoint
 }  // namespace Microsoft

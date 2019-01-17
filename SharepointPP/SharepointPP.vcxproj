@@ -24,8 +24,9 @@
     <ClCompile Include="authentication\STSRequest.cpp" />
     <ClCompile Include="common\ConsoleUtil.cpp" />
     <ClCompile Include="common\ConversionUtils.cpp" />
+    <ClCompile Include="common\Url.cpp" />
     <ClCompile Include="common\WebResponse.cpp" />
-    <ClCompile Include="common\WebUtils.cpp" />
+    <ClCompile Include="common\WebRequest.cpp" />
     <ClCompile Include="common\tinyxml2.cpp" />
     <ClCompile Include="common\TimeUtils.cpp" />
   </ItemGroup>
@@ -35,10 +36,14 @@
     <ClInclude Include="authentication\STSRequest.h" />
     <ClInclude Include="common\ConsoleUtil.h" />
     <ClInclude Include="common\ConversionUtils.h" />
+    <ClInclude Include="common\Url.h" />
     <ClInclude Include="common\WebResponse.h" />
-    <ClInclude Include="common\WebUtils.h" />
+    <ClInclude Include="common\WebRequest.h" />
     <ClInclude Include="common\tinyxml2.h" />
     <ClInclude Include="common\TimeUtils.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="SharepointPP.licenseheader" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
@@ -101,6 +106,8 @@
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(SolutionDir)include;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)lib;$(LibraryPath)</LibraryPath>
+    <CodeAnalysisRuleSet>NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -133,7 +140,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -141,6 +148,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <CallingConvention>Cdecl</CallingConvention>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <EnablePREfast>true</EnablePREfast>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

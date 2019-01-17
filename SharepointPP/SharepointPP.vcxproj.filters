@@ -42,9 +42,6 @@
     <ClCompile Include="common\TimeUtils.cpp">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="common\WebUtils.cpp">
-      <Filter>Source Files\common</Filter>
-    </ClCompile>
     <ClCompile Include="common\tinyxml2.cpp">
       <Filter>Source Files\common</Filter>
     </ClCompile>
@@ -52,6 +49,12 @@
       <Filter>Source Files\common</Filter>
     </ClCompile>
     <ClCompile Include="common\WebResponse.cpp">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="common\WebRequest.cpp">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="common\Url.cpp">
       <Filter>Source Files\common</Filter>
     </ClCompile>
   </ItemGroup>
@@ -71,17 +74,23 @@
     <ClInclude Include="common\TimeUtils.h">
       <Filter>Header Files\common</Filter>
     </ClInclude>
-    <ClInclude Include="common\WebUtils.h">
-      <Filter>Header Files\common</Filter>
-    </ClInclude>
     <ClInclude Include="common\tinyxml2.h">
       <Filter>Header Files\common</Filter>
     </ClInclude>
     <ClInclude Include="common\ConversionUtils.h">
       <Filter>Header Files\common</Filter>
     </ClInclude>
-    <ClInclude Include="common\WebResponse.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="common\WebRequest.h">
+      <Filter>Header Files\common</Filter>
     </ClInclude>
+    <ClInclude Include="common\WebResponse.h">
+      <Filter>Header Files\common</Filter>
+    </ClInclude>
+    <ClInclude Include="common\Url.h">
+      <Filter>Header Files\common</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="SharepointPP.licenseheader" />
   </ItemGroup>
 </Project>

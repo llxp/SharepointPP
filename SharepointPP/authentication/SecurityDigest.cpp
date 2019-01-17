@@ -23,6 +23,19 @@ SecurityDigest::~SecurityDigest()
 {
 }
 
+SecurityDigest::SecurityDigest(const SecurityDigest & other) :
+	m_securityDigest(other.m_securityDigest),
+	m_securityDigestSetTime(other.m_securityDigestSetTime),
+	m_securityDigestTimeout(other.m_securityDigestTimeout)
+{
+}
+
+SecurityDigest::SecurityDigest(SecurityDigest && other) noexcept :
+	SecurityDigest()
+{
+	swap(*this, other);
+}
+
 bool SecurityDigest::isValid() const
 {
 	auto now = TimeUtils::getCurrentTime();
@@ -37,23 +50,10 @@ std::string SecurityDigest::value() const
 	return m_securityDigest;
 }
 
-SecurityDigest::SecurityDigest(const SecurityDigest & other) :
-	m_securityDigest(other.m_securityDigest),
-	m_securityDigestSetTime(other.m_securityDigestSetTime),
-	m_securityDigestTimeout(other.m_securityDigestTimeout)
-{
-}
-
 SecurityDigest & SecurityDigest::operator=(SecurityDigest other)
 {
 	swap(*this, other);
 	return *this;
-}
-
-SecurityDigest::SecurityDigest(SecurityDigest && other) noexcept :
-	SecurityDigest()
-{
-	swap(*this, other);
 }
 
 void SecurityDigest::swap(SecurityDigest& first, SecurityDigest& second) noexcept // nothrow

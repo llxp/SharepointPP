@@ -7,7 +7,8 @@
 #include "STSRequest.h"
 #include "../common/tinyxml2.h"
 
-#include "../common/WebUtils.h"
+#include "../common/WebRequest.h"
+#include "../common/WebResponse.h"
 #include "../common/TimeUtils.h"
 
 using Microsoft::Sharepoint::Authentication;
@@ -31,7 +32,7 @@ Authentication::~Authentication()
 {
 }
 
-void Microsoft::Sharepoint::Authentication::setSharepointEndpoint(const std::string & sharepointEndpoint)
+void Authentication::setSharepointEndpoint(const std::string & sharepointEndpoint)
 {
 	if (sharepointEndpoint.length() > 0) {
 		m_endpoint = sharepointEndpoint;
@@ -46,12 +47,12 @@ void Microsoft::Sharepoint::Authentication::setSharepointEndpoint(const std::str
 	}
 }
 
-void Microsoft::Sharepoint::Authentication::setSTSEndpoint(const std::string & stsEndpoint)
+void Authentication::setSTSEndpoint(const std::string & stsEndpoint)
 {
 	m_stsEndpoint = stsEndpoint;
 }
 
-void Microsoft::Sharepoint::Authentication::setContextInfoUrl(const std::string && contextInfoUrl)
+void Authentication::setContextInfoUrl(const std::string && contextInfoUrl)
 {
 	m_contextInfoUrl = contextInfoUrl;
 }
@@ -63,17 +64,26 @@ bool Authentication::authenticate(std::string && username, std::string && passwo
 
 bool Authentication::tokenIsValid() const
 {
-	return (&m_securityDigest)->isValid();
+	return (&m_requestDigest)->isValid();
 }
 
-SecurityDigest Authentication::getSecurityDigest() const
+SecurityDigest Authentication::getRequestDigest() const
 {
-	return m_securityDigest;
+	return m_requestDigest;
 }
 
-WebRequest::CookieContainerType Microsoft::Sharepoint::Authentication::getSecurityCookies() const
+WebRequest::CookieContainerType Authentication::getSecurityCookies() const
 {
 	return m_securityCookies;
+}
+
+WebRequest Authentication::getPreparedRequest() const
+{
+	WebRequest newRequest;
+	newRequest.addHeader("X-RequestDigest", m_requestDigest.value());
+	newRequest.addHeader("accept", "application/xml;odata=verbose");
+	newRequest.setCookies(m_securityCookies);
+	return newRequest;
 }
 
 bool Authentication::login(std::string && username, std::string && password)
@@ -240,9 +250,9 @@ void Authentication::parseContextInfoResponse(std::string && responseXml)
 		if (formDigestValue != nullptr) {
 			securityDigestValue = std::string(formDigestValue->GetText());
 		}
-		if (securityDigestValue.length() > 0, timeout > 0) {
+		if (securityDigestValue.length() > 0 && timeout > 0) {
 			SecurityDigest newSecurityDigest(securityDigestValue, timeout);
-			m_securityDigest = newSecurityDigest;
+			m_requestDigest = newSecurityDigest;
 		}
 	}
 }
